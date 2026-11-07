@@ -1,0 +1,11 @@
+{
+  "name": "bake-house",
+  "version": "1.0.0",
+  "description": "Bake House - Freshly Baked E-Commerce Web App with Supabase, Google Sheets & Vercel",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "author": "arpatsara.mah@tsn.thai-tech.ac.th",
+  "license": "MIT"
+}

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>BAKE HOUSE | Freshly Baked, Made with Love</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- ================= HEADER ================= -->
+  <header class="header">
+
+    <div class="container nav-container">
+
+      <a href="#home" class="logo">
+        <span class="logo-icon">🥐</span>
+        <div>
+          <strong>BAKE HOUSE</strong>
+          <small>Freshly Baked, Made with Love.</small>
+        </div>
+      </a>
+
+      <nav class="navbar" id="navbar">
+        <a href="#home">Home</a>
+        <a href="#shop">Shop</a>
+        <a href="#promotion">Promotion</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+        <a href="javascript:void(0)" onclick="openTrackingModal()" style="color: var(--gold); font-weight: 500;">🔍 ติดตามออเดอร์</a>
+      </nav>
+
+      <div class="nav-actions">
+
+        <span class="db-pill" id="dbStatusBadge" style="cursor: pointer;" onclick="showToast(this.title)">
+          <span class="db-dot"></span> เชื่อมต่อฐานข้อมูล
+        </span>
+
+        <button class="icon-btn" onclick="focusSearch()" title="ค้นหา">
+          🔍
+        </button>
+
+        <button class="cart-btn" onclick="openCart()">
+          🛒
+          <span class="cart-count" id="cartCount">0</span>
+        </button>
+
+        <button class="login-btn" onclick="openLogin()">
+          👤 Login
+        </button>
+
+        <a href="admin.html" class="admin-link-btn" title="ระบบหลังบ้าน แอดมิน">
+          ⚙️ Admin
+        </a>
+
+        <button class="menu-toggle" onclick="toggleMenu()">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </header>
+
+  <!-- ================= HOME ================= -->
+  <section id="home" class="hero">
+
+    <div class="hero-overlay"></div>
+
+    <div class="container hero-content">
+
+      <span class="hero-small">WELCOME TO BAKE HOUSE</span>
+
+      <h1>
+        Freshly Baked
+        <span>Made with Love.</span>
+      </h1>
+
+      <p>
+        อบสดใหม่ทุกวัน ส่งความอร่อยและความสุข
+        ถึงคุณในทุกช่วงเวลาพิเศษ
+      </p>
+
+      <div class="hero-buttons">
+        <a href="#shop" class="btn primary-btn">
+          SHOP NOW
+        </a>
+
+        <a href="#promotion" class="btn outline-btn">
+          VIEW PROMOTION
+        </a>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ================= BEST SELLER ================= -->
+  <section class="section best-section">
+
+    <div class="container">
+
+      <div class="section-heading">
+        <span>OUR FAVORITE</span>
+        <h2>⭐ Best Seller</h2>
+        <p>เมนูยอดนิยมที่ลูกค้าของเราชื่นชอบ</p>
+      </div>
+
+      <div class="product-grid" id="bestProducts">
+        <!-- โหลดอัตโนมัติจาก Supabase / JavaScript -->
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ================= SHOP ================= -->
+  <section id="shop" class="section shop-section">
+
+    <div class="container">
+
+      <div class="section-heading">
+        <span>OUR BAKERY</span>
+        <h2>Our Bakery</h2>
+        <p>เลือกความอร่อยที่คุณชื่นชอบ</p>
+      </div>
+
+      <!-- Search -->
+      <div class="shop-tools">
+
+        <div class="search-box">
+
+          <span>🔍</span>
+
+          <input type="text" id="searchInput" placeholder="Search products..." onkeyup="searchProducts()">
+
+        </div>
+
+      </div>
+
+      <!-- Categories -->
+      <div class="categories">
+
+        <button class="category-btn active" onclick="filterProducts('All', this)">
+          All
+        </button>
+
+        <button class="category-btn" onclick="filterProducts('Bread', this)">
+          🍞 Bread
+        </button>
+
+        <button class="category-btn" onclick="filterProducts('Croissant', this)">
+          🥐 Croissant
+        </button>
+
+        <button class="category-btn" onclick="filterProducts('Cake', this)">
+          🍰 Cake
+        </button>
+
+        <button class="category-btn" onclick="filterProducts('Cookie', this)">
+          🍪 Cookie
+        </button>
+
+        <button class="category-btn" onclick="filterProducts('Bakery', this)">
+          🧁 Bakery
+        </button>
+
+      </div>
+
+      <div class="product-grid" id="productGrid">
+        <!-- โหลดอัตโนมัติจาก Supabase / JavaScript -->
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ================= PROMOTION ================= -->
+  <section id="promotion" class="section promotion-section">
+
+    <div class="container">
+
+      <div class="section-heading">
+        <span>SPECIAL OFFER</span>
+        <h2>Promotion</h2>
+        <p>โปรโมชั่นพิเศษจาก BAKE HOUSE (ใช้โค้ด WELCOME10, BAKE20)</p>
+      </div>
+
+      <div class="promotion-grid">
+
+        <div class="promotion-card">
+          <div class="promotion-icon">🥐</div>
+
+          <span>SPECIAL DEAL</span>
+
+          <h3>BUY 2 GET 1</h3>
+
+          <p>
+            ซื้อครัวซองต์ 2 ชิ้น
+            รับฟรีอีก 1 ชิ้น
+          </p>
+
+          <button class="promo-btn" onclick="showPromotion('BUY 2 GET 1')">
+            SHOP NOW
+          </button>
+        </div>
+
+        <div class="promotion-card">
+          <div class="promotion-icon">🎂</div>
+
+          <span>BIRTHDAY SPECIAL</span>
+
+          <h3>Birthday Cake</h3>
+
+          <p>
+            เค้กวันเกิด
+            ลดทันที 10%
+          </p>
+
+          <button class="promo-btn" onclick="showPromotion('Birthday Cake 10% OFF')">
+            SHOP NOW
+          </button>
+        </div>
+
+        <div class="promotion-card">
+          <div class="promotion-icon">☕</div>
+
+          <span>BAKERY SET</span>
+
+          <h3>Bakery Set</h3>
+
+          <p>
+            เครื่องดื่ม + เบเกอรี่
+            เริ่มต้นเพียง ฿99
+          </p>
+
+          <button class="promo-btn" onclick="showPromotion('Bakery Set')">
+            SHOP NOW
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section id="about" class="section about-section">
+
+    <div class="container about-grid">
+
+      <div class="about-image">
+        <div class="about-image-content">
+          🥖
+          <span>BAKE HOUSE</span>
+        </div>
+      </div>
+
+      <div class="about-content">
+
+        <span class="section-label">ABOUT US</span>
+
+        <h2>
+          About
+          <span>BAKE HOUSE</span>
+        </h2>
+
+        <p>
+          BAKE HOUSE คือร้านเบเกอรี่ออนไลน์
+          ที่นำเสนอขนมปังและเบเกอรี่หลากหลายประเภท
+          ผลิตด้วยวัตถุดิบคุณภาพและใส่ใจในทุกขั้นตอน
+        </p>
+
+        <p>
+          เราตั้งใจสร้างเว็บไซต์ที่ช่วยให้ลูกค้า
+          สามารถค้นหา เลือกสินค้า เพิ่มลงตะกร้า
+          และสั่งซื้อสินค้าได้อย่างสะดวก พร้อมระบบติดตามสถานะเรียลไทม์
+        </p>
+
+        <div class="concept">
+
+          <div>
+            <strong>Fresh</strong>
+            <span>อบสดใหม่</span>
+          </div>
+
+          <div>
+            <strong>Delicious</strong>
+            <span>อร่อยทุกคำ</span>
+          </div>
+
+          <div>
+            <strong>Convenient</strong>
+            <span>สั่งซื้อง่าย</span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ================= CONTACT ================= -->
+  <section id="contact" class="section contact-section">
+
+    <div class="container">
+
+      <div class="section-heading">
+        <span>GET IN TOUCH</span>
+        <h2>Contact Us</h2>
+        <p>ติดต่อ BAKE HOUSE ได้ทุกวัน ข้อมูลจะบันทึกเข้า Supabase</p>
+      </div>
+
+      <div class="contact-grid">
+
+        <div class="contact-info">
+
+          <div class="contact-item">
+            <div>📍</div>
+            <div>
+              <h3>Address</h3>
+              <p>BAKE HOUSE<br>ลำลูกกา ประเทศไทย</p>
+            </div>
+          </div>
+
+          <div class="contact-item">
+            <div>📞</div>
+            <div>
+              <h3>Phone</h3>
+              <p>081-234-5678</p>
+            </div>
+          </div>
+
+          <div class="contact-item">
+            <div>📧</div>
+            <div>
+              <h3>Email</h3>
+              <p>arpatsara.mah@tsn.thai-tech.ac.th</p>
+            </div>
+          </div>
+
+          <div class="contact-item">
+            <div>🕐</div>
+            <div>
+              <h3>Opening Hours</h3>
+              <p>Everyday<br>08:00 - 19:00</p>
+            </div>
+          </div>
+
+        </div>
+
+        <form class="contact-form" onsubmit="sendMessage(event)">
+
+          <input type="text" name="name" placeholder="ชื่อของคุณ" required>
+
+          <input type="email" name="email" placeholder="อีเมลติดต่อ" required>
+
+          <textarea name="message" placeholder="ข้อความที่ต้องการสอบถามหรือสั่งทำพิเศษ..." rows="6" required></textarea>
+
+          <button class="btn primary-btn">
+            SEND MESSAGE
+          </button>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="footer">
+
+    <div class="container footer-grid">
+
+      <div>
+        <h3>🥐 BAKE HOUSE</h3>
+
+        <p>
+          Freshly Baked, Made with Love.<br>
+          เบเกอรี่โฮมเมด สดใหม่จากเตาทุกวัน
+        </p>
+      </div>
+
+      <div>
+        <h4>Quick Links</h4>
+
+        <a href="#home">Home</a>
+        <a href="#shop">Shop</a>
+        <a href="#promotion">Promotion</a>
+        <a href="javascript:void(0)" onclick="openTrackingModal()">🔍 ตรวจสอบคำสั่งซื้อ</a>
+        <a href="admin.html">⚙️ เข้าสู่ระบบแอดมิน</a>
+      </div>
+
+      <div>
+        <h4>Categories</h4>
+
+        <a href="#shop">Bread</a>
+        <a href="#shop">Croissant</a>
+        <a href="#shop">Cake</a>
+        <a href="#shop">Cookie</a>
+        <a href="#shop">Bakery</a>
+      </div>
+
+      <div>
+        <h4>Contact</h4>
+
+        <p>📞 081-234-5678</p>
+        <p>📧 arpatsara.mah@tsn.thai-tech.ac.th</p>
+        <p>📍 ลำลูกกา ปทุมธานี</p>
+      </div>
+
+    </div>
+
+    <div class="footer-bottom">
+
+      <p>
+        © 2026 BAKE HOUSE | Powered by Supabase & Vercel
+      </p>
+
+    </div>
+
+  </footer>
+
+  <!-- ================= PRODUCT MODAL ================= -->
+  <div class="modal" id="productModal">
+
+    <div class="modal-content product-detail-modal">
+
+      <button class="close-btn" onclick="closeModal('productModal')">
+        ×
+      </button>
+
+      <div id="productDetail"></div>
+
+    </div>
+
+  </div>
+
+  <!-- ================= CART MODAL ================= -->
+  <div class="modal" id="cartModal">
+
+    <div class="modal-content cart-modal">
+
+      <button class="close-btn" onclick="closeModal('cartModal')">
+        ×
+      </button>
+
+      <h2>🛒 Shopping Cart</h2>
+
+      <div id="cartItems"></div>
+
+      <!-- Coupon Row -->
+      <div class="coupon-row">
+        <input type="text" id="couponInput" placeholder="โค้ดส่วนลด (เช่น WELCOME10, BAKE20)">
+        <button type="button" onclick="applyCoupon()">ใช้โค้ด</button>
+      </div>
+
+      <div class="cart-summary">
+
+        <div>
+          <span>Subtotal</span>
+          <strong id="subtotal">฿0</strong>
+        </div>
+
+        <div>
+          <span>Shipping</span>
+          <strong id="shipping">฿0</strong>
+        </div>
+
+        <div id="discountRow" style="display:none; color:#28a745;">
+          <span>ส่วนลด (Discount)</span>
+          <strong id="discountAmount">-฿0</strong>
+        </div>
+
+        <div class="cart-total">
+          <span>Total</span>
+          <strong id="total">฿0</strong>
+        </div>
+
+        <button class="btn primary-btn checkout-btn" onclick="openCheckout()">
+          CHECKOUT
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ================= CHECKOUT MODAL ================= -->
+  <div class="modal" id="checkoutModal">
+
+    <div class="modal-content checkout-modal">
+
+      <button class="close-btn" onclick="closeModal('checkoutModal')">
+        ×
+      </button>
+
+      <h2>Checkout</h2>
+
+      <form onsubmit="placeOrder(event)">
+
+        <h3>1. ข้อมูลผู้สั่งซื้อและการจัดส่ง</h3>
+
+        <input type="text" id="customerName" placeholder="ชื่อ-นามสกุล ผู้รับ" required>
+
+        <div class="form-row">
+          <input type="tel" id="customerPhone" placeholder="เบอร์โทรศัพท์ (สำหรับส่งของ)" required>
+          <input type="email" id="customerEmail" placeholder="อีเมล (สำหรับรับแจ้งเตือน)">
+        </div>
+
+        <textarea id="customerAddress" placeholder="ที่อยู่จัดส่ง (บ้านเลขที่, หมู่, ถนน, ตำบล/แขวง, อำเภอ/เขต)" required></textarea>
+
+        <div class="form-row">
+          <input type="text" id="customerProvince" placeholder="จังหวัด" required>
+          <input type="text" id="customerPostal" placeholder="รหัสไปรษณีย์" required>
+        </div>
+
+        <input type="text" id="orderNotes" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี เช่น ส่งช่วงบ่าย, ไม่หวานมาก)">
+
+        <h3>2. วิธีการชำระเงิน</h3>
+
+        <div class="payment-selector">
+          <label class="payment-card active" onclick="selectPaymentMethod('promptpay')">
+            <input type="radio" name="payment" value="promptpay" checked required>
+            <div>
+              <strong>⚡ พร้อมเพย์ (PromptPay QR)</strong>
+              <small style="display:block; color:var(--gray);">สแกน QR Code จ่ายได้ทุกธนาคาร ยืนยันยอดรวดเร็ว</small>
+            </div>
+          </label>
+
+          <label class="payment-card" onclick="selectPaymentMethod('transfer')">
+            <input type="radio" name="payment" value="transfer" required>
+            <div>
+              <strong>🏦 โอนเงินผ่านบัญชีธนาคาร</strong>
+              <small style="display:block; color:var(--gray);">โอนผ่าน Mobile Banking เข้าบัญชีร้าน</small>
+            </div>
+          </label>
+
+          <label class="payment-card" onclick="selectPaymentMethod('cod')">
+            <input type="radio" name="payment" value="cod" required>
+            <div>
+              <strong>💵 เก็บเงินปลายทาง (Cash on Delivery)</strong>
+              <small style="display:block; color:var(--gray);">ชำระเงินสดกับพนักงานส่งสินค้าเมื่อได้รับของ</small>
+            </div>
+          </label>
+        </div>
+
+        <!-- Box 1: PromptPay -->
+        <div id="promptpayDetails" class="payment-details-box">
+          <div class="promptpay-qr-container">
+            <p style="font-weight:600; margin-bottom:6px; color:var(--dark-brown);">สแกน QR Code เพื่อชำระเงิน</p>
+            <img id="promptpayQrImg" src="" alt="PromptPay QR Code">
+            <p style="font-size:13px; color:var(--gray); margin:0;">
+              พร้อมเพย์: <b id="promptpayNumberText">0812345678</b>
+            </p>
+          </div>
+
+          <div class="slip-upload-box" onclick="document.getElementById('slipInput').click()">
+            <span>📷 แนบสลิปการโอนเงิน (คลิกเพื่ออัปโหลด)</span>
+            <input type="file" id="slipInput" accept="image/*" style="display:none;" onchange="handleSlipUpload(event)">
+            <img id="slipPreview" class="slipPreview slip-preview" src="" alt="สลิปโอนเงิน">
+          </div>
+        </div>
+
+        <!-- Box 2: Bank Transfer -->
+        <div id="transferDetails" class="payment-details-box" style="display:none;">
+          <p id="bankInfoText" style="line-height:1.6; margin-bottom:10px;">
+            <strong>ธนาคารกสิกรไทย</strong><br>
+            เลขบัญชี: <b>123-4-56789-0</b><br>
+            ชื่อบัญชี: BAKE HOUSE (arpatsara.mah)
+          </p>
+
+          <div class="slip-upload-box" onclick="document.getElementById('slipInput2').click()">
+            <span>📷 แนบสลิปการโอนเงิน (คลิกเพื่ออัปโหลด)</span>
+            <input type="file" id="slipInput2" accept="image/*" style="display:none;" onchange="handleSlipUpload(event)">
+          </div>
+        </div>
+
+        <!-- Box 3: COD -->
+        <div id="codDetails" class="payment-details-box" style="display:none;">
+          <p style="color:var(--dark-brown); margin:0;">
+            ✓ ชำระเงินสดจำนวนเต็มแก่พนักงานจัดส่งเมื่อพัสดุถึงมือคุณ โปรดเตรียมเงินให้พอดี
+          </p>
+        </div>
+
+        <div class="checkout-summary">
+          <span>สินค้า <b id="checkoutItems">0</b> รายการ</span>
+          <strong id="checkoutTotal">฿0</strong>
+        </div>
+
+        <button type="submit" class="btn primary-btn checkout-btn">
+          PLACE ORDER (ยืนยันสั่งซื้อ)
+        </button>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- ================= LOGIN MODAL ================= -->
+  <div class="modal" id="loginModal">
+
+    <div class="modal-content login-modal">
+
+      <button class="close-btn" onclick="closeModal('loginModal')">
+        ×
+      </button>
+
+      <div class="login-icon">👤</div>
+
+      <h2>Login</h2>
+
+      <p>เข้าสู่ระบบ BAKE HOUSE</p>
+
+      <form onsubmit="login(event)">
+
+        <input type="email" placeholder="Email" value="arpatsara.mah@tsn.thai-tech.ac.th" required>
+
+        <input type="password" placeholder="Password" value="password123" required>
+
+        <button class="btn primary-btn">
+          LOGIN
+        </button>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- ================= ORDER SUCCESS ================= -->
+  <div class="modal" id="successModal">
+
+    <div class="modal-content success-modal">
+
+      <div class="success-icon">✓</div>
+
+      <h2>สั่งซื้อสำเร็จ!</h2>
+
+      <p>
+        ขอบคุณที่เลือก BAKE HOUSE ข้อมูลถูกบันทึกเข้าระบบเรียบร้อยแล้ว
+      </p>
+
+      <p>
+        หมายเลขคำสั่งซื้อ:
+        <strong id="orderNumber" style="color: var(--brown); font-size: 19px;"></strong>
+      </p>
+
+      <p>
+        ยอดชำระสุทธิ:
+        <strong id="successTotalAmount" style="color: var(--gold);"></strong>
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+        <button class="btn outline-btn" onclick="openTrackingModal(); document.getElementById('trackingInput').value = document.getElementById('orderNumber').textContent; searchTracking(); closeModal('successModal');">
+          🔍 ตรวจสอบสถานะคำสั่งซื้อนี้
+        </button>
+
+        <button class="btn primary-btn" onclick="closeModal('successModal')">
+          CONTINUE SHOPPING
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ================= ORDER TRACKING MODAL ================= -->
+  <div class="modal" id="trackingModal">
+
+    <div class="modal-content tracking-modal">
+
+      <button class="close-btn" onclick="closeModal('trackingModal')">
+        ×
+      </button>
+
+      <div style="text-align:center; margin-bottom:15px;">
+        <span style="font-size:32px;">📦</span>
+        <h2 style="font-family:'Playfair Display', serif; color:var(--dark-brown); margin:5px 0;">ติดตามคำสั่งซื้อ</h2>
+        <p style="color:var(--gray); font-size:14px;">กรอกรหัสคำสั่งซื้อ (เช่น BH261108-xxxx) หรือเบอร์โทรศัพท์</p>
+      </div>
+
+      <div class="tracking-search-bar">
+        <input type="text" id="trackingInput" placeholder="รหัสคำสั่งซื้อ หรือ เบอร์โทรศัพท์..." onkeydown="if(event.key==='Enter') searchTracking()">
+        <button class="btn primary-btn" onclick="searchTracking()">ค้นหา</button>
+      </div>
+
+      <div id="trackingResults">
+        <div style="text-align:center; padding:20px; color:#8A7A72;">
+          กรอกรหัสออเดอร์แล้วกด "ค้นหา" เพื่อตรวจสอบสถานะแบบเรียลไทม์
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Supabase JS Client via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Configuration & Helper Functions -->
+  <script src="supabase-config.js"></script>
+  <!-- Main Application Logic -->
+  <script src="script.js"></script>
+
+</body>
+
+</html>

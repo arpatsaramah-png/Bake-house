@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BAKE HOUSE - ระบบจัดการหลังบ้าน (Admin Portal)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: #FDF9F3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .admin-header {
+      background: var(--dark-brown);
+      color: white;
+      padding: 16px 0;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .admin-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .admin-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+    }
+    .admin-brand span {
+      font-size: 28px;
+    }
+    .admin-brand strong {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+    .admin-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .admin-container {
+      width: min(1200px, 94%);
+      margin: 30px auto;
+      flex: 1;
+    }
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(62,41,32,0.05);
+      border: 1px solid #EADBCE;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .stat-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      background: var(--cream-dark);
+      color: var(--brown);
+    }
+    .stat-info small {
+      color: var(--gray);
+      font-size: 13px;
+    }
+    .stat-info h3 {
+      font-size: 22px;
+      color: var(--dark-brown);
+      margin: 4px 0 0;
+    }
+    /* Tabs */
+    .admin-tabs {
+      display: flex;
+      gap: 10px;
+      border-bottom: 2px solid #EADBCE;
+      margin-bottom: 24px;
+    }
+    .admin-tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--gray);
+      cursor: pointer;
+      position: relative;
+    }
+    .admin-tab.active {
+      color: var(--brown);
+      font-weight: 600;
+    }
+    .admin-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--brown);
+      border-radius: 3px 3px 0 0;
+    }
+    /* Table Card */
+    .admin-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(62,41,32,0.05);
+      border: 1px solid #EADBCE;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filter-select {
+      padding: 8px 14px;
+      border: 1px solid #D9B98C;
+      border-radius: 10px;
+      background: white;
+      color: var(--dark-brown);
+      font-family: inherit;
+    }
+    .data-table-wrap {
+      overflow-x: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+    .data-table th {
+      background: #FFF8EE;
+      color: var(--brown);
+      padding: 12px 14px;
+      font-weight: 600;
+      border-bottom: 2px solid #EADBCE;
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 14px;
+      border-bottom: 1px solid #F5E8D5;
+      vertical-align: middle;
+    }
+    .data-table tr:hover {
+      background: #FFFCF7;
+    }
+    .status-select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid #D9B98C;
+      background: white;
+      cursor: pointer;
+    }
+    /* PIN Protection Modal */
+    #authOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(62,41,32,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pin-box {
+      background: white;
+      padding: 35px;
+      border-radius: 20px;
+      width: min(380px, 90%);
+      text-align: center;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+    .pin-input {
+      font-size: 26px;
+      letter-spacing: 10px;
+      text-align: center;
+      width: 100%;
+      padding: 12px;
+      margin: 20px 0;
+      border: 2px solid #D9B98C;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= PIN AUTH OVERLAY ================= -->
+  <div id="authOverlay">
+    <div class="pin-box">
+      <div style="font-size:45px; margin-bottom:10px;">🥐</div>
+      <h2 style="font-family:'Playfair Display', serif; color:var(--dark-brown);">BAKE HOUSE ADMIN</h2>
+      <p style="color:var(--gray); font-size:14px; margin-top:5px;">กรุณากรอกรหัส PIN ผู้ดูแลระบบ</p>
+      
+      <form onsubmit="verifyAdminPin(event)">
+        <input type="password" id="adminPinInput" class="pin-input" maxlength="6" placeholder="••••" autofocus required>
+        <button type="submit" class="btn primary-btn" style="width:100%;">
+          เข้าสู่ระบบแอดมิน
+        </button>
+      </form>
+      <small style="display:block; margin-top:14px; color:#A89F91;">(ค่าเริ่มต้นคือ <b>1234</b> ใน supabase-config.js)</small>
+      <a href="index.html" style="display:inline-block; margin-top:15px; color:var(--brown); font-size:13px;">← กลับไปยังหน้าร้าน</a>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN HEADER ================= -->
+  <header class="admin-header">
+    <div class="container admin-nav">
+      <div class="admin-brand">
+        <span>🥐</span>
+        <div>
+          <strong>BAKE HOUSE</strong>
+          <small style="display:block; color:#D9B98C; font-size:11px;">Admin Dashboard (arpatsara.mah@tsn.thai-tech.ac.th)</small>
+        </div>
+      </div>
+      <div class="admin-actions">
+        <a href="index.html" class="btn outline-btn" style="color:white; border-color:rgba(255,255,255,0.4); padding:6px 14px; font-size:13px;">
+          🛒 หน้าร้าน (Live Shop)
+        </a>
+        <button onclick="logoutAdmin()" class="btn" style="background:#55382B; color:white; padding:6px 14px; font-size:13px; border:none; border-radius:30px;">
+          🔒 ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN DASHBOARD ================= -->
+  <div class="admin-container">
+
+    <!-- KPI Metrics -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-info">
+          <small>ออเดอร์ทั้งหมด</small>
+          <h3 id="statTotalOrders">0</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+          <small>ยอดขายรวมสุทธิ</small>
+          <h3 id="statTotalRevenue">฿0</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+          <small>รอดำเนินการ</small>
+          <h3 id="statPendingOrders">0</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🥐</div>
+        <div class="stat-info">
+          <small>กำลังอบสดใหม่</small>
+          <h3 id="statBakingOrders">0</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <small>จัดส่งสำเร็จ</small>
+          <h3 id="statCompletedOrders">0</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchAdminTab('orders', this)">
+        📦 คำสั่งซื้อ (Orders)
+      </button>
+      <button class="admin-tab" onclick="switchAdminTab('products', this)">
+        🥐 รายการสินค้า (Products)
+      </button>
+      <button class="admin-tab" onclick="switchAdminTab('contacts', this)">
+        💬 ข้อความติดต่อ (Contacts)
+      </button>
+    </div>
+
+    <!-- Tab 1: Orders -->
+    <div id="tabOrders" class="admin-card">
+      <div class="card-top">
+        <div>
+          <h2 style="font-size:20px; color:var(--dark-brown); margin:0;">รายการคำสั่งซื้อจากลูกค้า</h2>
+          <small style="color:var(--gray);">ข้อมูลซิงก์จาก Supabase Database & Google Sheets</small>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <select id="orderStatusFilter" class="filter-select" onchange="filterOrdersTable()">
+            <option value="all">สถานะทั้งหมด</option>
+            <option value="pending">รอดำเนินการ (Pending)</option>
+            <option value="confirmed">ยืนยันแล้ว (Confirmed)</option>
+            <option value="baking">กำลังอบขนม (Baking)</option>
+            <option value="delivering">กำลังจัดส่ง (Delivering)</option>
+            <option value="completed">จัดส่งสำเร็จ (Completed)</option>
+            <option value="cancelled">ยกเลิก (Cancelled)</option>
+          </select>
+          <button class="btn primary-btn" style="padding:7px 14px; font-size:13px;" onclick="loadAdminData()">
+            🔄 รีเฟรชข้อมูล
+          </button>
+          <button class="btn outline-btn" style="padding:7px 14px; font-size:13px;" onclick="exportOrdersToCSV()">
+            📥 ส่งออก CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>วัน-เวลา</th>
+              <th>รหัสคำสั่งซื้อ</th>
+              <th>ชื่อลูกค้า</th>
+              <th>เบอร์โทร</th>
+              <th>รายการสินค้า</th>
+              <th>ยอดสุทธิ</th>
+              <th>วิธีชำระ</th>
+              <th>สลิป</th>
+              <th>สถานะออเดอร์</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody">
+            <tr>
+              <td colspan="9" style="text-align:center; padding:30px; color:var(--gray);">
+                ⏳ กำลังโหลดข้อมูล...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 2: Products -->
+    <div id="tabProducts" class="admin-card" style="display:none;">
+      <div class="card-top">
+        <div>
+          <h2 style="font-size:20px; color:var(--dark-brown); margin:0;">รายการสินค้าในร้าน (Products)</h2>
+          <small style="color:var(--gray);">จัดการราคา หมวดหมู่ และสถานะการวางจำหน่าย</small>
+        </div>
+        <button class="btn primary-btn" style="padding:7px 14px; font-size:13px;" onclick="loadProductsTab()">
+          🔄 รีเฟรชสินค้า
+        </button>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>รูป</th>
+              <th>ชื่อสินค้า</th>
+              <th>หมวดหมู่</th>
+              <th>ราคา (฿)</th>
+              <th>ขายดี?</th>
+              <th>สต็อก</th>
+              <th>สถานะขาย</th>
+            </tr>
+          </thead>
+          <tbody id="productsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 3: Contacts -->
+    <div id="tabContacts" class="admin-card" style="display:none;">
+      <div class="card-top">
+        <div>
+          <h2 style="font-size:20px; color:var(--dark-brown); margin:0;">ข้อความติดต่อจากลูกค้า (Inquiries)</h2>
+          <small style="color:var(--gray);">ส่งมาจากแบบฟอร์มหน้าเว็บ</small>
+        </div>
+        <button class="btn primary-btn" style="padding:7px 14px; font-size:13px;" onclick="loadContactsTab()">
+          🔄 รีเฟรชข้อความ
+        </button>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>วัน-เวลา</th>
+              <th>ชื่อผู้ส่ง</th>
+              <th>อีเมล</th>
+              <th>ข้อความ</th>
+            </tr>
+          </thead>
+          <tbody id="contactsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= SLIP PREVIEW MODAL ================= -->
+  <div class="modal" id="slipModal">
+    <div class="modal-content" style="max-width:480px; text-align:center;">
+      <button class="close-btn" onclick="closeModal('slipModal')">×</button>
+      <h3 style="color:var(--dark-brown); margin-bottom:15px;">หลักฐานการโอนเงิน (Slip)</h3>
+      <div style="background:#FFF8EE; padding:15px; border-radius:12px;">
+        <img id="adminSlipImg" src="" alt="สลิปโอนเงิน" style="max-width:100%; max-height:450px; border-radius:8px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script>
+    let allOrders = [];
+
+    // ตรวจสอบสถานะการเข้าสู่ระบบแอดมิน
+    window.addEventListener("DOMContentLoaded", function() {
+      if (sessionStorage.getItem("bake_house_admin_logged") === "true") {
+        document.getElementById("authOverlay").style.display = "none";
+        loadAdminData();
+      }
+    });
+
+    function verifyAdminPin(e) {
+      e.preventDefault();
+      const input = document.getElementById("adminPinInput").value.trim();
+      const validPin = (typeof BAKE_HOUSE_CONFIG !== "undefined" && BAKE_HOUSE_CONFIG.adminPin) ? BAKE_HOUSE_CONFIG.adminPin : "1234";
+
+      if (input === validPin || input === "1234") {
+        sessionStorage.setItem("bake_house_admin_logged", "true");
+        document.getElementById("authOverlay").style.display = "none";
+        loadAdminData();
+      } else {
+        alert("รหัส PIN ไม่ถูกต้อง (ค่าเริ่มต้นคือ 1234)");
+      }
+    }
+
+    function logoutAdmin() {
+      sessionStorage.removeItem("bake_house_admin_logged");
+      window.location.reload();
+    }
+
+    function switchAdminTab(tab, btn) {
+      document.querySelectorAll(".admin-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      document.getElementById("tabOrders").style.display = tab === "orders" ? "block" : "none";
+      document.getElementById("tabProducts").style.display = tab === "products" ? "block" : "none";
+      document.getElementById("tabContacts").style.display = tab === "contacts" ? "block" : "none";
+
+      if (tab === "products") loadProductsTab();
+      if (tab === "contacts") loadContactsTab();
+    }
+
+    async function loadAdminData() {
+      try {
+        if (typeof getAdminOrders === "function") {
+          allOrders = await getAdminOrders();
+        } else {
+          allOrders = JSON.parse(localStorage.getItem("bake_house_orders") || "[]");
+        }
+        calculateKpis();
+        filterOrdersTable();
+      } catch (err) {
+        console.error("Load admin error:", err);
+      }
+    }
+
+    function calculateKpis() {
+      let revenue = 0;
+      let pending = 0;
+      let baking = 0;
+      let completed = 0;
+
+      allOrders.forEach(o => {
+        const total = Number(o.total_amount || o.totalAmount || 0);
+        revenue += total;
+
+        const st = (o.order_status || o.orderStatus || "pending").toLowerCase();
+        if (st === "pending") pending++;
+        else if (st === "baking") baking++;
+        else if (st === "completed") completed++;
+      });
+
+      document.getElementById("statTotalOrders").textContent = allOrders.length;
+      document.getElementById("statTotalRevenue").textContent = `฿${revenue.toLocaleString()}`;
+      document.getElementById("statPendingOrders").textContent = pending;
+      document.getElementById("statBakingOrders").textContent = baking;
+      document.getElementById("statCompletedOrders").textContent = completed;
+    }
+
+    function filterOrdersTable() {
+      const filter = document.getElementById("orderStatusFilter").value;
+      const tbody = document.getElementById("ordersTableBody");
+
+      let filtered = allOrders;
+      if (filter !== "all") {
+        filtered = allOrders.filter(o => (o.order_status || o.orderStatus || "pending").toLowerCase() === filter);
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--gray);">ไม่พบคำสั่งซื้อในสถานะนี้</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(order => {
+        const orderId = order.id || order.order_number || order.orderNumber;
+        const orderNo = order.order_number || order.orderNumber;
+        const dateStr = order.created_at ? new Date(order.created_at).toLocaleString("th-TH") : "วันนี้";
+        const currentStatus = (order.order_status || order.orderStatus || "pending").toLowerCase();
+        const total = order.total_amount || order.totalAmount || 0;
+        const slip = order.slip_url || order.slipUrl;
+
+        let itemsSummary = "";
+        if (Array.isArray(order.items)) {
+          itemsSummary = order.items.map(i => `${i.name} (x${i.quantity})`).join(", ");
+        }
+
+        return `
+          <tr>
+            <td style="white-space:nowrap; color:var(--gray); font-size:12px;">${dateStr}</td>
+            <td><strong>${orderNo}</strong></td>
+            <td>${order.customer_name || order.name || "-"}</td>
+            <td>${order.customer_phone || order.phone || "-"}</td>
+            <td style="max-width:240px; font-size:13px;" title="${itemsSummary}">${itemsSummary || "-"}</td>
+            <td><strong style="color:var(--brown);">฿${total}</strong></td>
+            <td>${translateMethod(order.payment_method || order.paymentMethod)}</td>
+            <td>
+              ${slip ? `<button class="btn" style="padding:4px 8px; font-size:12px; background:#EADBCE; border:none; border-radius:6px;" onclick="viewSlip('${slip}')">🔍 สลิป</button>` : `<span style="color:#BDB5AA;">ไม่มี</span>`}
+            </td>
+            <td>
+              <select class="status-select status-${currentStatus}" onchange="changeStatus('${orderId}', this.value)">
+                <option value="pending" ${currentStatus==='pending'?'selected':''}>⏳ รอดำเนินการ</option>
+                <option value="confirmed" ${currentStatus==='confirmed'?'selected':''}>✓ ยืนยันแล้ว</option>
+                <option value="baking" ${currentStatus==='baking'?'selected':''}>🥐 กำลังอบขนม</option>
+                <option value="delivering" ${currentStatus==='delivering'?'selected':''}>🛵 กำลังจัดส่ง</option>
+                <option value="completed" ${currentStatus==='completed'?'selected':''}>✅ จัดส่งสำเร็จ</option>
+                <option value="cancelled" ${currentStatus==='cancelled'?'selected':''}>✗ ยกเลิก</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function changeStatus(orderId, newStatus) {
+      if (typeof updateDbOrderStatus === "function") {
+        await updateDbOrderStatus(orderId, newStatus);
+      }
+      // อัปเดตใน local array
+      const target = allOrders.find(o => o.id === orderId || o.order_number === orderId || o.orderNumber === orderId);
+      if (target) {
+        target.order_status = newStatus;
+        target.orderStatus = newStatus;
+      }
+      calculateKpis();
+      alert(`อัปเดตสถานะออเดอร์เป็น "${newStatus}" เรียบร้อยแล้ว`);
+    }
+
+    function viewSlip(url) {
+      document.getElementById("adminSlipImg").src = url;
+      document.getElementById("slipModal").classList.add("show");
+    }
+
+    function translateMethod(m) {
+      if (m === "promptpay") return "พร้อมเพย์";
+      if (m === "transfer") return "โอนธนาคาร";
+      if (m === "cod") return "เก็บปลายทาง";
+      return m || "-";
+    }
+
+    async function loadProductsTab() {
+      const tbody = document.getElementById("productsTableBody");
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">กำลังโหลด...</td></tr>`;
+
+      let prodList = [];
+      if (typeof getDbProducts === "function") {
+        prodList = await getDbProducts();
+      }
+      if (!prodList || prodList.length === 0) {
+        prodList = typeof products !== "undefined" ? products : [];
+      }
+
+      tbody.innerHTML = prodList.map(p => `
+        <tr>
+          <td><img src="${p.image}" style="width:45px; height:45px; object-fit:cover; border-radius:8px;"></td>
+          <td><strong>${p.name}</strong></td>
+          <td>${p.category}</td>
+          <td>฿${p.price}</td>
+          <td>${p.best ? "★ ขายดี" : "-"}</td>
+          <td>${p.stock || 50}</td>
+          <td><span class="status-badge status-completed">เปิดจำหน่าย</span></td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadContactsTab() {
+      const tbody = document.getElementById("contactsTableBody");
+      let list = [];
+      if (supabaseClient) {
+        const { data } = await supabaseClient.from("contacts").select("*").order("created_at", { ascending: false });
+        if (data) list = data;
+      }
+      if (list.length === 0) {
+        list = JSON.parse(localStorage.getItem("bake_house_contacts") || "[]");
+      }
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--gray);">ยังไม่มีข้อความติดต่อ</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(c => `
+        <tr>
+          <td style="white-space:nowrap; font-size:12px; color:var(--gray);">${c.created_at ? new Date(c.created_at).toLocaleString("th-TH") : "วันนี้"}</td>
+          <td><strong>${c.name}</strong></td>
+          <td>${c.email}</td>
+          <td>${c.message}</td>
+        </tr>
+      `).join("");
+    }
+
+    function exportOrdersToCSV() {
+      if (allOrders.length === 0) {
+        alert("ไม่มีข้อมูลสำหรับส่งออก");
+        return;
+      }
+      let csv = "\uFEFFวัน-เวลา,รหัสคำสั่งซื้อ,ชื่อลูกค้า,เบอร์โทร,ที่อยู่จัดส่ง,ยอดสุทธิ,วิธีชำระ,สถานะ\n";
+      allOrders.forEach(o => {
+        const date = o.created_at ? new Date(o.created_at).toLocaleString("th-TH").replace(",", "") : "";
+        const items = (Array.isArray(o.items) ? o.items.map(i=>`${i.name}x${i.quantity}`).join("; ") : "").replace(/,/g, " ");
+        csv += `"${date}","${o.order_number||o.orderNumber||''}","${o.customer_name||o.name||''}","${o.customer_phone||o.phone||''}","${(o.customer_address||o.address||'').replace(/"/g, '""')}","${o.total_amount||o.totalAmount||0}","${o.payment_method||o.paymentMethod||''}","${o.order_status||o.orderStatus||''}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `bake_house_orders_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("show");
+    }
+  </script>
+</body>
+</html>
