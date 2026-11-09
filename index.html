@@ -339,7 +339,7 @@
             <div>📞</div>
             <div>
               <h3>Phone</h3>
-              <p>081-234-5678</p>
+              <p>082-175-3706</p>
             </div>
           </div>
 
@@ -418,7 +418,7 @@
       <div>
         <h4>Contact</h4>
 
-        <p>📞 081-234-5678</p>
+        <p>📞 082-175-3706</p>
         <p>📧 arpatsara.mah@tsn.thai-tech.ac.th</p>
         <p>📍 ลำลูกกา ปทุมธานี</p>
       </div>
@@ -564,10 +564,23 @@
         <div id="promptpayDetails" class="payment-details-box">
           <div class="promptpay-qr-container">
             <p style="font-weight:600; margin-bottom:6px; color:var(--dark-brown);">สแกน QR Code เพื่อชำระเงิน</p>
+            <div id="test1BahtBadge" style="display:none; background:#FFF3CD; color:#856404; font-size:12px; font-weight:600; padding:4px 8px; border-radius:6px; margin-bottom:8px;">
+              🧪 โหมดทดสอบ: ยอดสแกน 1.00 บาท
+            </div>
             <img id="promptpayQrImg" src="" alt="PromptPay QR Code">
-            <p style="font-size:13px; color:var(--gray); margin:0;">
-              พร้อมเพย์: <b id="promptpayNumberText">0812345678</b>
+            <p style="font-size:13px; color:var(--dark-brown); margin:0;">
+              ชื่อบัญชี: <b id="promptpayNameText">นางสาวอาภัสรา มหันตรัตน์</b>
             </p>
+            <p style="font-size:13px; color:var(--gray); margin:3px 0 0;">
+              พร้อมเพย์: <b id="promptpayNumberText">082-175-3706</b>
+            </p>
+
+            <!-- ปุ่มกดทดสอบโอนเงิน 1 บาท -->
+            <div style="margin-top:12px; padding-top:10px; border-top:1px dashed #D9B98C;">
+              <button type="button" id="btnTest1Baht" onclick="toggleTest1BahtQR()" style="background:#FFFDF9; border:1px solid #C99458; color:var(--brown); font-size:12px; font-weight:600; padding:6px 14px; border-radius:20px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:0.2s;">
+                🧪 กดเพื่อสแกนโอนเทส 1 บาท
+              </button>
+            </div>
           </div>
 
           <div class="slip-upload-box" onclick="document.getElementById('slipInput').click()">

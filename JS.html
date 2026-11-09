@@ -522,24 +522,62 @@ function selectPaymentMethod(method) {
     if (codBox) codBox.style.display = method === "cod" ? "block" : "none";
 }
 
+let isTest1Baht = false;
+
+function toggleTest1BahtQR() {
+    isTest1Baht = !isTest1Baht;
+    const promptpayImg = document.getElementById("promptpayQrImg");
+    const btn = document.getElementById("btnTest1Baht");
+    const badge = document.getElementById("test1BahtBadge");
+    const config = typeof BAKE_HOUSE_CONFIG !== "undefined" ? BAKE_HOUSE_CONFIG : {};
+    const ppNum = config.promptPayNumber || "0821753706";
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const total = Math.max(0, subtotal + 40 - appliedDiscount);
+
+    if (isTest1Baht) {
+        if (promptpayImg) promptpayImg.src = `https://promptpay.io/${ppNum}/1.png`;
+        if (badge) badge.style.display = "block";
+        if (btn) {
+            btn.innerHTML = `↩️ คืนค่ายอดจริง (฿${total})`;
+            btn.style.background = "#FFE8D6";
+            btn.style.borderColor = "var(--gold)";
+        }
+        showToast("🧪 ปรับ QR Code เป็นยอดโอนเทส 1.00 บาทแล้ว สแกนได้เลย!");
+    } else {
+        if (promptpayImg) promptpayImg.src = `https://promptpay.io/${ppNum}/${total}.png`;
+        if (badge) badge.style.display = "none";
+        if (btn) {
+            btn.innerHTML = `🧪 กดเพื่อสแกนโอนเทส 1 บาท`;
+            btn.style.background = "#FFFDF9";
+            btn.style.borderColor = "#C99458";
+        }
+        showToast(`🔄 ปรับกลับเป็นยอดคำสั่งซื้อจริง ฿${total} แล้ว`);
+    }
+}
+
 function updatePaymentDisplay() {
     const config = typeof BAKE_HOUSE_CONFIG !== "undefined" ? BAKE_HOUSE_CONFIG : {};
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     const total = Math.max(0, subtotal + 40 - appliedDiscount);
+    const ppNum = config.promptPayNumber || "0821753706";
+    const accName = config.accountName || "นางสาวอาภัสรา มหันตรัตน์";
 
     // PromptPay QR image (ผ่าน PromptPay QR API Generator)
     const promptpayImg = document.getElementById("promptpayQrImg");
-    if (promptpayImg && config.promptPayNumber) {
-        // ใช้ PromptPay QR generator สาธารณะ
-        promptpayImg.src = `https://promptpay.io/${config.promptPayNumber}/${total}.png`;
+    if (promptpayImg) {
+        const qrAmount = isTest1Baht ? 1 : total;
+        promptpayImg.src = `https://promptpay.io/${ppNum}/${qrAmount}.png`;
     }
 
     const ppNumberEl = document.getElementById("promptpayNumberText");
-    if (ppNumberEl) ppNumberEl.textContent = config.promptPayNumber || "0812345678";
+    if (ppNumberEl) ppNumberEl.textContent = ppNum;
+
+    const ppNameEl = document.getElementById("promptpayNameText");
+    if (ppNameEl) ppNameEl.textContent = accName;
 
     const bankInfoEl = document.getElementById("bankInfoText");
     if (bankInfoEl) {
-        bankInfoEl.innerHTML = `<strong>${config.bankName || "ธนาคารกสิกรไทย"}</strong><br>เลขบัญชี: <b>${config.bankAccount || "123-4-56789-0"}</b><br>ชื่อบัญชี: ${config.accountName || "BAKE HOUSE"}`;
+        bankInfoEl.innerHTML = `<strong>${config.bankName || "ธนาคารกสิกรไทย"}</strong><br>เลขบัญชี: <b>${config.bankAccount || "123-4-56789-0"}</b><br>ชื่อบัญชี: ${accName}`;
     }
 }
 
@@ -589,7 +627,8 @@ async function placeOrder(event) {
     // คำนวณยอดเงิน
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     const shippingFee = 40;
-    const totalAmount = Math.max(0, subtotal + shippingFee - appliedDiscount);
+    const finalAmount = (isTest1Baht && paymentMethod === "promptpay") ? 1 : Math.max(0, subtotal + shippingFee - appliedDiscount);
+    const finalNotes = (isTest1Baht && paymentMethod === "promptpay") ? (notes ? notes + " " : "") + "[ออเดอร์ทดสอบโอน 1 บาท]" : notes;
 
     // สร้างรหัสคำสั่งซื้อ เช่น BH261108-9842
     const now = new Date();
@@ -612,12 +651,12 @@ async function placeOrder(event) {
         shippingFee: shippingFee,
         discount: appliedDiscount,
         couponCode: appliedCouponCode,
-        totalAmount: totalAmount,
+        totalAmount: finalAmount,
         paymentMethod: paymentMethod,
         paymentStatus: paymentMethod === "cod" ? "pending" : (uploadedSlipBase64 ? "paid" : "pending"),
         orderStatus: "pending",
         slipUrl: uploadedSlipBase64 ? uploadedSlipBase64 : "",
-        notes: notes
+        notes: finalNotes
     };
 
     const submitBtn = event.target.querySelector("button[type='submit']") || event.target.querySelector(".checkout-btn");
@@ -635,7 +674,7 @@ async function placeOrder(event) {
         // แสดงผลหน้าสำเร็จ
         document.getElementById("orderNumber").textContent = orderNumber;
         const successTotal = document.getElementById("successTotalAmount");
-        if (successTotal) successTotal.textContent = `฿${totalAmount}`;
+        if (successTotal) successTotal.textContent = `฿${finalAmount}`;
 
         closeModal("checkoutModal");
         document.getElementById("successModal").classList.add("show");
@@ -645,6 +684,7 @@ async function placeOrder(event) {
         appliedDiscount = 0;
         appliedCouponCode = "";
         uploadedSlipBase64 = "";
+        isTest1Baht = false;
         saveCartState();
         updateCart();
         event.target.reset();

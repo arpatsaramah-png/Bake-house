@@ -3,7 +3,6 @@
  * BAKE HOUSE - Vercel Serverless Function: /api/config
  * ========================================================================
  * ส่งเฉพาะค่า Config สาธารณะสำหรับหน้าร้านเท่านั้น
- * ⚠️ รหัส PIN แอดมิน หรือ Secret ใดๆ จะไม่มีการส่งออกมาที่นี่เด็ดขาด
  * ========================================================================
  */
 
@@ -15,10 +14,10 @@ module.exports = (req, res) => {
   return res.status(200).json({
     supabaseUrl: process.env.SUPABASE_URL || "",
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
-    promptPayNumber: process.env.PROMPTPAY_NUMBER || "",
+    promptPayNumber: process.env.PROMPTPAY_NUMBER || "0821753706",
     bankName: process.env.BANK_NAME || "ธนาคารกสิกรไทย (KBANK)",
     bankAccount: process.env.BANK_ACCOUNT || "",
-    accountName: process.env.ACCOUNT_NAME || "BAKE HOUSE",
+    accountName: process.env.ACCOUNT_NAME || "นางสาวอาภัสรา มหันตรัตน์",
     googleSheetWebhookUrl: process.env.GOOGLE_SHEET_WEBHOOK_URL || ""
   });
 };
