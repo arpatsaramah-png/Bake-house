@@ -442,19 +442,45 @@
 
     async function verifyAdminPin(e) {
       e.preventDefault();
-      if (typeof loadSystemConfig === "function") {
-        await loadSystemConfig();
-      }
-      const input = document.getElementById("adminPinInput").value.trim();
-      const validPin = (typeof BAKE_HOUSE_CONFIG !== "undefined" && BAKE_HOUSE_CONFIG.adminPin) ? BAKE_HOUSE_CONFIG.adminPin : "1234";
+      const pinInput = document.getElementById("adminPinInput");
+      const input = pinInput.value.trim();
+      const submitBtn = e.target.querySelector("button[type='submit']");
 
-      if (input === validPin) {
-        sessionStorage.setItem("bake_house_admin_logged", "true");
-        document.getElementById("authOverlay").style.display = "none";
-        loadAdminData();
-      } else {
-        alert("รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
-        document.getElementById("adminPinInput").value = "";
+      if (!input) return;
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "กำลังตรวจสอบ...";
+      }
+
+      try {
+        // ส่งไปตรวจที่ Backend Vercel Serverless Function หลังบ้าน
+        const response = await fetch("/api/verify-pin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin: input })
+        });
+
+        const result = await response.json();
+
+        if (result && result.success) {
+          sessionStorage.setItem("bake_house_admin_logged", "true");
+          document.getElementById("authOverlay").style.display = "none";
+          loadAdminData();
+        } else {
+          alert(result.message || "รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+          pinInput.value = "";
+          pinInput.focus();
+        }
+      } catch (err) {
+        // กรณีทดสอบแบบ offline / local static
+        alert("รหัส PIN ไม่ถูกต้อง หรือไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+        pinInput.value = "";
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "เข้าสู่ระบบแอดมิน";
+        }
       }
     }
 

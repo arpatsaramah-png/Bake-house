@@ -13,10 +13,9 @@ let BAKE_HOUSE_CONFIG = {
   supabaseUrl: "",
   supabaseAnonKey: "",
   bankName: "ธนาคารกสิกรไทย (KBANK)",
-  bankAccount: "123-4-56789-0",
-  accountName: "BAKE HOUSE (arpatsara.mah)",
-  promptPayNumber: "0812345678",
-  adminPin: "1234",
+  bankAccount: "",
+  accountName: "BAKE HOUSE",
+  promptPayNumber: "",
   googleSheetWebhookUrl: ""
 };
 
