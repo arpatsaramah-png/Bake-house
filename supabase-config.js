@@ -1,57 +1,84 @@
 /**
  * ========================================================================
- * BAKE HOUSE - Supabase & System Configuration
+ * BAKE HOUSE - Supabase & System Configuration Loader
  * ========================================================================
- * สำหรับคุณ: arpatsara.mah@tsn.thai-tech.ac.th
- * 
- * นำข้อมูลจาก Supabase Dashboard (https://supabase.com):
- * เมนู Project Settings -> API มาใส่ในนี้:
- * 1. Project URL -> supabaseUrl
- * 2. Project API Keys (anon public) -> supabaseAnonKey
+ * สถาปัตยกรรมความปลอดภัยระดับสูง (Option A):
+ * - ไม่มีการฝัง API Key หรือ URL ตรงๆ ในไฟล์นี้
+ * - ระบบจะดึงค่าอัตโนมัติจาก Vercel Environment Variables ผ่าน /api/config
+ * - ทำให้ Push ขึ้น GitHub ได้ปลอดภัย 100% และย้ายไปเขียนคอมเครื่องไหนก็ทำงานต่อได้ทันที
  * ========================================================================
  */
 
-const BAKE_HOUSE_CONFIG = {
-  // 1. นำมาจาก Supabase Dashboard -> Project Settings -> API
-  supabaseUrl: "https://YOUR-PROJECT-ID.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_PUBLIC_KEY",
-
-  // 2. ข้อมูลการชำระเงินของร้าน (ใช้แสดงในหน้าสั่งซื้อ / QR Code)
+let BAKE_HOUSE_CONFIG = {
+  supabaseUrl: "",
+  supabaseAnonKey: "",
   bankName: "ธนาคารกสิกรไทย (KBANK)",
   bankAccount: "123-4-56789-0",
   accountName: "BAKE HOUSE (arpatsara.mah)",
-  promptPayNumber: "0812345678", // เบอร์หรือเลขบัตรประชาชนพร้อมเพย์
-
-  // 3. รหัสผ่านเข้าหลังบ้าน Admin Dashboard (admin.html)
+  promptPayNumber: "0812345678",
   adminPin: "1234",
-
-  // 4. (ตัวเลือกเสริม) Webhook URL ของ Google Sheets Apps Script
-  // หากติดตั้ง Web App ใน Google Sheets แล้ว นำ URL มาวางตรงนี้ ข้อมูลจะวิ่งเข้า Sheet ทันที!
   googleSheetWebhookUrl: ""
 };
 
-// ตรวจสอบว่าได้กรอกค่า Supabase หรือยัง
+let supabaseClient = null;
+let configPromise = null;
+
+/**
+ * โหลดค่า Configuration จาก Vercel Serverless Function (/api/config)
+ */
+async function loadSystemConfig() {
+  if (configPromise) return configPromise;
+
+  configPromise = (async () => {
+    try {
+      // 1. ดึงค่าจาก Vercel Environment Variables
+      const res = await fetch("/api/config");
+      if (res.ok) {
+        const cloudConfig = await res.json();
+        BAKE_HOUSE_CONFIG = { ...BAKE_HOUSE_CONFIG, ...cloudConfig };
+      }
+    } catch (e) {
+      console.log("ℹ️ Running in offline or local mode without /api endpoint");
+    }
+
+    // 2. ถ้ามีการบันทึกค่าไว้ใน LocalStorage สำหรับทดสอบบนเครื่อง ให้ดึงมาใช้ร่วมด้วย
+    try {
+      const localCustom = localStorage.getItem("bake_house_local_config");
+      if (localCustom) {
+        BAKE_HOUSE_CONFIG = { ...BAKE_HOUSE_CONFIG, ...JSON.parse(localCustom) };
+      }
+    } catch (err) {}
+
+    // 3. เริ่มต้น Supabase Client เมื่อได้รับ URL และ Key
+    if (typeof supabase !== "undefined" && isSupabaseConfigured()) {
+      try {
+        supabaseClient = supabase.createClient(
+          BAKE_HOUSE_CONFIG.supabaseUrl,
+          BAKE_HOUSE_CONFIG.supabaseAnonKey
+        );
+        console.log("🟢 BAKE HOUSE: Connected to Supabase via Vercel Cloud Config!");
+      } catch (err) {
+        console.error("🔴 Failed to initialize Supabase client:", err);
+      }
+    } else {
+      console.log("🟡 BAKE HOUSE: Running with fallback data (configure Vercel Environment Variables)");
+    }
+
+    return BAKE_HOUSE_CONFIG;
+  })();
+
+  return configPromise;
+}
+
+// โหลดทันทีในเบื้องหลัง
+loadSystemConfig();
+
+// ตรวจสอบว่าได้ตั้งค่า Supabase หรือยัง
 function isSupabaseConfigured() {
   return BAKE_HOUSE_CONFIG.supabaseUrl &&
          !BAKE_HOUSE_CONFIG.supabaseUrl.includes("YOUR-PROJECT-ID") &&
          BAKE_HOUSE_CONFIG.supabaseAnonKey &&
          !BAKE_HOUSE_CONFIG.supabaseAnonKey.includes("YOUR_SUPABASE_ANON");
-}
-
-// สร้าง Supabase Client
-let supabaseClient = null;
-if (typeof supabase !== "undefined" && isSupabaseConfigured()) {
-  try {
-    supabaseClient = supabase.createClient(
-      BAKE_HOUSE_CONFIG.supabaseUrl,
-      BAKE_HOUSE_CONFIG.supabaseAnonKey
-    );
-    console.log("🟢 BAKE HOUSE: Connected to Supabase successfully!");
-  } catch (err) {
-    console.error("🔴 Failed to initialize Supabase client:", err);
-  }
-} else {
-  console.log("🟡 BAKE HOUSE: Running in local fallback mode (configure Supabase in supabase-config.js)");
 }
 
 // ====================== DATABASE HELPER FUNCTIONS ======================
@@ -60,6 +87,8 @@ if (typeof supabase !== "undefined" && isSupabaseConfigured()) {
  * 1. ดึงรายการสินค้าทั้งหมดจาก Supabase
  */
 async function getDbProducts() {
+  await loadSystemConfig();
+
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -79,7 +108,6 @@ async function getDbProducts() {
       console.warn("⚠️ Cannot fetch from Supabase, falling back to local products:", e.message);
     }
   }
-  // Fallback คืนค่าข้อมูลเริ่มต้นใน JS
   return null;
 }
 
@@ -87,6 +115,7 @@ async function getDbProducts() {
  * 2. บันทึกคำสั่งซื้อใหม่ลง Supabase & ซิงก์ Google Sheets
  */
 async function saveDbOrder(orderData) {
+  await loadSystemConfig();
   let savedOrder = null;
 
   if (supabaseClient) {
@@ -151,12 +180,12 @@ async function saveDbOrder(orderData) {
  * 3. ค้นหาสถานะคำสั่งซื้อด้วย รหัสคำสั่งซื้อ หรือ เบอร์โทรศัพท์
  */
 async function trackDbOrder(query) {
+  await loadSystemConfig();
   const cleanQuery = query.trim();
   if (!cleanQuery) return [];
 
   if (supabaseClient) {
     try {
-      // ค้นหาทั้งจาก order_number หรือ customer_phone
       const { data, error } = await supabaseClient
         .from("orders")
         .select("*")
@@ -183,6 +212,8 @@ async function trackDbOrder(query) {
  * 4. บันทึกข้อความติดต่อลง Supabase
  */
 async function saveDbContact(contactData) {
+  await loadSystemConfig();
+
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -213,6 +244,8 @@ async function saveDbContact(contactData) {
  * 5. ดึงออเดอร์ทั้งหมดสำหรับแอดมิน (admin.html)
  */
 async function getAdminOrders() {
+  await loadSystemConfig();
+
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -232,6 +265,8 @@ async function getAdminOrders() {
  * 6. อัปเดตสถานะออเดอร์ (แอดมิน)
  */
 async function updateDbOrderStatus(orderId, newStatus) {
+  await loadSystemConfig();
+
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -260,6 +295,7 @@ async function updateDbOrderStatus(orderId, newStatus) {
  * 7. ส่งข้อมูลไปยัง Google Sheets Webhook
  */
 async function syncToGoogleSheet(orderData) {
+  await loadSystemConfig();
   if (!BAKE_HOUSE_CONFIG.googleSheetWebhookUrl) return;
 
   try {

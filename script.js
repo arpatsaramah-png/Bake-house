@@ -172,6 +172,10 @@ let uploadedSlipBase64 = "";
 
 /* ================= INITIAL LOAD ================= */
 document.addEventListener("DOMContentLoaded", async function () {
+    if (typeof loadSystemConfig === "function") {
+        await loadSystemConfig();
+    }
+
     // โหลดสินค้าจาก Supabase DB (หากเชื่อมต่อแล้ว)
     if (typeof getDbProducts === "function") {
         const dbProducts = await getDbProducts();
@@ -194,10 +198,10 @@ function checkDatabaseStatusBadge() {
 
     if (typeof isSupabaseConfigured === "function" && isSupabaseConfigured()) {
         badge.innerHTML = `<span class="db-dot"></span> Supabase Connected`;
-        badge.title = "เชื่อมต่อ Supabase Database สำเร็จ";
+        badge.title = "เชื่อมต่อ Supabase Database สำเร็จ (ผ่าน Vercel Cloud Config)";
     } else {
         badge.innerHTML = `<span class="db-dot warning"></span> Demo Mode (Local)`;
-        badge.title = "ยังไม่ได้ใส่ Supabase URL/Key ใน supabase-config.js (ทำงานผ่าน Local Mode)";
+        badge.title = "ยังไม่ได้ตั้งค่า Vercel Environment Variables (ทำงานผ่าน Local Demo Mode)";
     }
 }
 

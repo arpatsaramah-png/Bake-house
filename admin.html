@@ -430,15 +430,21 @@
     let allOrders = [];
 
     // ตรวจสอบสถานะการเข้าสู่ระบบแอดมิน
-    window.addEventListener("DOMContentLoaded", function() {
+    window.addEventListener("DOMContentLoaded", async function() {
+      if (typeof loadSystemConfig === "function") {
+        await loadSystemConfig();
+      }
       if (sessionStorage.getItem("bake_house_admin_logged") === "true") {
         document.getElementById("authOverlay").style.display = "none";
         loadAdminData();
       }
     });
 
-    function verifyAdminPin(e) {
+    async function verifyAdminPin(e) {
       e.preventDefault();
+      if (typeof loadSystemConfig === "function") {
+        await loadSystemConfig();
+      }
       const input = document.getElementById("adminPinInput").value.trim();
       const validPin = (typeof BAKE_HOUSE_CONFIG !== "undefined" && BAKE_HOUSE_CONFIG.adminPin) ? BAKE_HOUSE_CONFIG.adminPin : "1234";
 
