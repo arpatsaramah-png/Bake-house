@@ -167,10 +167,8 @@ async function saveDbOrder(orderData) {
     console.error("Failed to save order to localStorage:", e);
   }
 
-  // ซิงก์ไปยัง Google Sheet ทันที (หากตั้งค่า Webhook ไว้)
-  if (BAKE_HOUSE_CONFIG.googleSheetWebhookUrl) {
-    syncToGoogleSheet(orderData);
-  }
+  // ซิงก์ไปยัง Google Sheet ทันทีแบบ Real-time
+  syncToGoogleSheet(orderData);
 
   return savedOrder || orderData;
 }
@@ -291,39 +289,54 @@ async function updateDbOrderStatus(orderId, newStatus) {
 }
 
 /**
- * 7. ส่งข้อมูลไปยัง Google Sheets Webhook
+ * 7. ส่งข้อมูลไปยัง Google Sheets Webhook แบบ Real-time
  */
 async function syncToGoogleSheet(orderData) {
-  await loadSystemConfig();
-  if (!BAKE_HOUSE_CONFIG.googleSheetWebhookUrl) return;
+  const payload = {
+    order_number: orderData.orderNumber,
+    customer_name: orderData.name,
+    customer_phone: orderData.phone,
+    customer_email: orderData.email || "",
+    customer_address: orderData.address,
+    province: orderData.province || "",
+    postal_code: orderData.postalCode || "",
+    items: orderData.items,
+    subtotal: orderData.subtotal,
+    shipping_fee: orderData.shippingFee,
+    discount: orderData.discount || 0,
+    total_amount: orderData.totalAmount,
+    payment_method: orderData.paymentMethod,
+    payment_status: orderData.paymentStatus || "pending",
+    order_status: orderData.orderStatus || "pending",
+    slip_url: orderData.slipUrl || "",
+    notes: orderData.notes || ""
+  };
 
+  // 1. ส่งผ่าน Vercel Serverless Function (/api/sync-order) ให้หลังบ้านยิงเข้า Google Sheet ทันที
   try {
-    await fetch(BAKE_HOUSE_CONFIG.googleSheetWebhookUrl, {
+    fetch("/api/sync-order", {
       method: "POST",
-      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        order_number: orderData.orderNumber,
-        customer_name: orderData.name,
-        customer_phone: orderData.phone,
-        customer_email: orderData.email || "",
-        customer_address: orderData.address,
-        province: orderData.province || "",
-        postal_code: orderData.postalCode || "",
-        items: orderData.items,
-        subtotal: orderData.subtotal,
-        shipping_fee: orderData.shippingFee,
-        discount: orderData.discount || 0,
-        total_amount: orderData.totalAmount,
-        payment_method: orderData.paymentMethod,
-        payment_status: orderData.paymentStatus || "pending",
-        order_status: orderData.orderStatus || "pending",
-        slip_url: orderData.slipUrl || "",
-        notes: orderData.notes || ""
-      })
+      body: JSON.stringify(payload)
+    }).then(res => res.json()).then(res => {
+      console.log("⚡ Real-time order pushed via /api/sync-order:", res);
+    }).catch(err => {
+      console.warn("Serverless sync-order warning:", err);
     });
-    console.log("📤 Order data pushed to Google Sheet Webhook");
-  } catch (e) {
-    console.warn("Google Sheet sync failed:", e);
+  } catch (err) {}
+
+  // 2. ถ้ามี webhook url ที่หน้าบ้านด้วย ให้ยิงสำรองแบบ text/plain (เลี่ยง CORS)
+  if (BAKE_HOUSE_CONFIG && BAKE_HOUSE_CONFIG.googleSheetWebhookUrl) {
+    try {
+      fetch(BAKE_HOUSE_CONFIG.googleSheetWebhookUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(payload)
+      });
+      console.log("📤 Direct order pushed to Google Sheet Webhook");
+    } catch (e) {
+      console.warn("Direct Google Sheet sync failed:", e);
+    }
   }
 }

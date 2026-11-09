@@ -20,7 +20,7 @@
 // ====================== ตั้งค่าเชื่อมต่อ SUPABASE ======================
 const CONFIG = {
   // นำค่ามาจาก Supabase Project Settings -> API
-  SUPABASE_URL: "https://YOUR-PROJECT-ID.supabase.co", // เปลี่ยนเป็น Project URL ของคุณ
+  SUPABASE_URL: "https://rkacacxxbffodnkvhqri.supabase.co", // Project URL ของคุณ
   SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY", // เปลี่ยนเป็น anon public key ของคุณ
   
   // ชื่อชีตต่างๆ
