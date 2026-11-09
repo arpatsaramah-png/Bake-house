@@ -221,8 +221,7 @@
           เข้าสู่ระบบแอดมิน
         </button>
       </form>
-      <small style="display:block; margin-top:14px; color:#A89F91;">(ค่าเริ่มต้นคือ <b>1234</b> ใน supabase-config.js)</small>
-      <a href="index.html" style="display:inline-block; margin-top:15px; color:var(--brown); font-size:13px;">← กลับไปยังหน้าร้าน</a>
+      <a href="index.html" style="display:inline-block; margin-top:20px; color:var(--brown); font-size:13px;">← กลับไปยังหน้าร้าน</a>
     </div>
   </div>
 
@@ -443,12 +442,13 @@
       const input = document.getElementById("adminPinInput").value.trim();
       const validPin = (typeof BAKE_HOUSE_CONFIG !== "undefined" && BAKE_HOUSE_CONFIG.adminPin) ? BAKE_HOUSE_CONFIG.adminPin : "1234";
 
-      if (input === validPin || input === "1234") {
+      if (input === validPin) {
         sessionStorage.setItem("bake_house_admin_logged", "true");
         document.getElementById("authOverlay").style.display = "none";
         loadAdminData();
       } else {
-        alert("รหัส PIN ไม่ถูกต้อง (ค่าเริ่มต้นคือ 1234)");
+        alert("รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+        document.getElementById("adminPinInput").value = "";
       }
     }
 
