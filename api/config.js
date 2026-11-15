@@ -14,10 +14,10 @@ module.exports = (req, res) => {
   return res.status(200).json({
     supabaseUrl: process.env.SUPABASE_URL || "",
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
-    promptPayNumber: process.env.PROMPTPAY_NUMBER || "0821753706",
+    promptPayNumber: process.env.PROMPTPAY_NUMBER || "",
     bankName: process.env.BANK_NAME || "ธนาคารกสิกรไทย (KBANK)",
     bankAccount: process.env.BANK_ACCOUNT || "",
-    accountName: process.env.ACCOUNT_NAME || "นางสาวอาภัสรา มหันตรัตน์",
+    accountName: process.env.ACCOUNT_NAME || "",
     googleSheetWebhookUrl: process.env.GOOGLE_SHEET_WEBHOOK_URL || ""
   });
 };

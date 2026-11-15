@@ -530,12 +530,12 @@ function toggleTest1BahtQR() {
     const btn = document.getElementById("btnTest1Baht");
     const badge = document.getElementById("test1BahtBadge");
     const config = typeof BAKE_HOUSE_CONFIG !== "undefined" ? BAKE_HOUSE_CONFIG : {};
-    const ppNum = config.promptPayNumber || "0821753706";
+    const ppNum = config.promptPayNumber || "";
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     const total = Math.max(0, subtotal + 40 - appliedDiscount);
 
     if (isTest1Baht) {
-        if (promptpayImg) promptpayImg.src = `https://promptpay.io/${ppNum}/1.png`;
+        if (promptpayImg && ppNum) promptpayImg.src = `https://promptpay.io/${ppNum}/1.png`;
         if (badge) badge.style.display = "block";
         if (btn) {
             btn.innerHTML = `↩️ คืนค่ายอดจริง (฿${total})`;
@@ -544,7 +544,7 @@ function toggleTest1BahtQR() {
         }
         showToast("🧪 ปรับ QR Code เป็นยอดโอนเทส 1.00 บาทแล้ว สแกนได้เลย!");
     } else {
-        if (promptpayImg) promptpayImg.src = `https://promptpay.io/${ppNum}/${total}.png`;
+        if (promptpayImg && ppNum) promptpayImg.src = `https://promptpay.io/${ppNum}/${total}.png`;
         if (badge) badge.style.display = "none";
         if (btn) {
             btn.innerHTML = `🧪 กดเพื่อสแกนโอนเทส 1 บาท`;
@@ -559,25 +559,37 @@ function updatePaymentDisplay() {
     const config = typeof BAKE_HOUSE_CONFIG !== "undefined" ? BAKE_HOUSE_CONFIG : {};
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     const total = Math.max(0, subtotal + 40 - appliedDiscount);
-    const ppNum = config.promptPayNumber || "0821753706";
-    const accName = config.accountName || "นางสาวอาภัสรา มหันตรัตน์";
+    const ppNum = config.promptPayNumber || "";
+    const accName = config.accountName || "";
 
     // PromptPay QR image (ผ่าน PromptPay QR API Generator)
     const promptpayImg = document.getElementById("promptpayQrImg");
     if (promptpayImg) {
-        const qrAmount = isTest1Baht ? 1 : total;
-        promptpayImg.src = `https://promptpay.io/${ppNum}/${qrAmount}.png`;
+        if (ppNum) {
+            const qrAmount = isTest1Baht ? 1 : total;
+            promptpayImg.src = `https://promptpay.io/${ppNum}/${qrAmount}.png`;
+        } else {
+            promptpayImg.src = "";
+        }
     }
 
     const ppNumberEl = document.getElementById("promptpayNumberText");
-    if (ppNumberEl) ppNumberEl.textContent = ppNum;
+    if (ppNumberEl) {
+        if (ppNum) {
+            const clean = ppNum.replace(/[^0-9]/g, "");
+            const formatted = clean.length === 10 ? `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6)}` : ppNum;
+            ppNumberEl.textContent = formatted;
+        } else {
+            ppNumberEl.textContent = "-";
+        }
+    }
 
     const ppNameEl = document.getElementById("promptpayNameText");
-    if (ppNameEl) ppNameEl.textContent = accName;
+    if (ppNameEl) ppNameEl.textContent = accName || "-";
 
     const bankInfoEl = document.getElementById("bankInfoText");
     if (bankInfoEl) {
-        bankInfoEl.innerHTML = `<strong>${config.bankName || "ธนาคารกสิกรไทย"}</strong><br>เลขบัญชี: <b>${config.bankAccount || "123-4-56789-0"}</b><br>ชื่อบัญชี: ${accName}`;
+        bankInfoEl.innerHTML = `<strong>${config.bankName || "ธนาคารกสิกรไทย"}</strong><br>เลขบัญชี: <b>${config.bankAccount || "-"}</b><br>ชื่อบัญชี: ${accName || "-"}`;
     }
 }
 
