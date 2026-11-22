@@ -172,8 +172,21 @@ let uploadedSlipBase64 = "";
 
 /* ================= INITIAL LOAD ================= */
 document.addEventListener("DOMContentLoaded", async function () {
+    // 1. ลงทะเบียนฟังสถานะผู้ใช้งานทันที
+    if (typeof onAuthUserChange === "function") {
+        onAuthUserChange(updateAuthUI);
+    }
+
     if (typeof loadSystemConfig === "function") {
         await loadSystemConfig();
+    }
+
+    // 2. เริ่มต้นและซิงก์ Auth Session ทันที (รองรับ redirect จาก Google)
+    if (typeof initAuthSession === "function") {
+        const user = await initAuthSession();
+        if (user) {
+            updateAuthUI(user);
+        }
     }
 
     // โหลดสินค้าจาก Supabase DB (หากเชื่อมต่อแล้ว)
@@ -188,14 +201,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     renderBestProducts();
     renderProducts();
     updateCart();
-
-    // เริ่มต้นระบบ Google Auth และฟังสถานะเข้าสู่ระบบ
-    if (typeof onAuthUserChange === "function") {
-        onAuthUserChange(updateAuthUI);
-    }
-    if (typeof initAuthSession === "function") {
-        initAuthSession();
-    }
 });
 
 /* ================= DATABASE STATUS BADGE ================= */
@@ -958,7 +963,7 @@ function updateAuthUI(user) {
     const guestView = document.getElementById("loginViewGuest");
     const userView = document.getElementById("loginViewUser");
     const navContent = document.getElementById("navLoginContent");
-    const navBtn = document.getElementById("navLoginBtn");
+    const navBtn = document.getElementById("navLoginBtn") || document.querySelector(".login-btn");
 
     if (user) {
         // อัปเดตใน Modal
@@ -974,16 +979,21 @@ function updateAuthUI(user) {
         if (emailEl) emailEl.textContent = user.email || "";
 
         // อัปเดตปุ่มในแถบเมนู (Navbar)
+        const firstName = (user.name || "สมาชิก").split(" ")[0];
+        const avatarHtml = user.avatar 
+            ? `<img src="${user.avatar}" class="nav-user-avatar" alt="${user.name}">` 
+            : `👤`;
+
         if (navContent) {
-            const firstName = (user.name || "สมาชิก").split(" ")[0];
-            const avatarHtml = user.avatar 
-                ? `<img src="${user.avatar}" class="nav-user-avatar" alt="${user.name}">` 
-                : `👤`;
             navContent.innerHTML = `${avatarHtml} <span>${firstName}</span>`;
+        } else if (navBtn) {
+            navBtn.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px;">${avatarHtml} <span>${firstName}</span></span>`;
         }
+
         if (navBtn) {
             navBtn.style.borderColor = "var(--gold)";
             navBtn.style.background = "#FFF9F2";
+            navBtn.title = `เข้าสู่ระบบในชื่อ: ${user.name} (${user.email})`;
         }
     } else {
         // สถานะ Guest
@@ -992,10 +1002,14 @@ function updateAuthUI(user) {
 
         if (navContent) {
             navContent.innerHTML = `👤 Login`;
+        } else if (navBtn) {
+            navBtn.innerHTML = `👤 Login`;
         }
+
         if (navBtn) {
             navBtn.style.borderColor = "var(--brown)";
             navBtn.style.background = "transparent";
+            navBtn.title = "เข้าสู่ระบบ";
         }
     }
 }

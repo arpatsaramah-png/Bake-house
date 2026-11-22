@@ -116,16 +116,15 @@ async function setupAuthListeners() {
   if (!supabaseClient) return;
 
   try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session && session.user) {
-      notifyAuthUserChange(extractUserInfo(session.user));
-    }
+    // 1. ตรวจสอบและดึง session ทันที (รวมถึงจาก URL hash/query)
+    await checkAndSyncAuthUser();
 
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      console.log("🔐 Supabase Auth Event:", event);
+    // 2. ฟัง event การเปลี่ยนแปลงสถานะ
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log("🔐 Supabase Auth Event:", event, session);
       if (session && session.user) {
         notifyAuthUserChange(extractUserInfo(session.user));
-      } else {
+      } else if (event === "SIGNED_OUT") {
         notifyAuthUserChange(null);
       }
     });
@@ -135,12 +134,85 @@ async function setupAuthListeners() {
 }
 
 /**
+ * ตรวจจับ Token จาก URL (OAuth Callback) หรือ Local Session แล้วซิงก์สถานะ
+ */
+async function checkAndSyncAuthUser() {
+  if (!supabaseClient) return null;
+
+  try {
+    // กรณีที่ 1: มี access_token ใน URL Hash (OAuth Callback จาก Google)
+    if (window.location.hash && window.location.hash.includes("access_token=")) {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token") || "";
+
+      if (accessToken) {
+        console.log("🔑 Detected access_token in URL hash, saving session...");
+        const { data, error } = await supabaseClient.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+
+        if (!error && data?.session?.user) {
+          const user = extractUserInfo(data.session.user);
+          notifyAuthUserChange(user);
+          // ทำความสะอาด URL hash ให้สวยงาม
+          try {
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+          } catch (e) {}
+          return user;
+        }
+      }
+    }
+
+    // กรณีที่ 2: มี auth code ใน URL Query (PKCE Flow)
+    if (window.location.search && window.location.search.includes("code=")) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      if (code) {
+        console.log("🔑 Detected auth code in URL query, exchanging session...");
+        const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
+        if (!error && data?.session?.user) {
+          const user = extractUserInfo(data.session.user);
+          notifyAuthUserChange(user);
+          try {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (e) {}
+          return user;
+        }
+      }
+    }
+
+    // กรณีที่ 3: ดึง Session จาก LocalStorage ที่บันทึกไว้
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session && session.user) {
+      const user = extractUserInfo(session.user);
+      notifyAuthUserChange(user);
+      return user;
+    }
+
+    // กรณีที่ 4: ตรวจสอบจาก getUser() เป็นตัวสำรอง
+    const { data: { user: authUser } } = await supabaseClient.auth.getUser();
+    if (authUser) {
+      const user = extractUserInfo(authUser);
+      notifyAuthUserChange(user);
+      return user;
+    }
+  } catch (err) {
+    console.warn("Check auth error:", err);
+  }
+
+  notifyAuthUserChange(null);
+  return null;
+}
+
+/**
  * ตรวจสอบและเริ่มต้นเซสชัน Login
  */
 async function initAuthSession() {
   await loadSystemConfig();
   if (supabaseClient) {
-    await setupAuthListeners();
+    return await checkAndSyncAuthUser();
   }
   return currentAuthUser;
 }
