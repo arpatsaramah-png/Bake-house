@@ -289,6 +289,9 @@
     </div>
 
     <!-- Navigation Tabs -->
+    <div id="keyWarningBanner" style="display:none; background:#FFF3CD; border:1px solid #FFEBAA; color:#856404; padding:12px 18px; border-radius:10px; margin-bottom:20px; font-size:14px; line-height:1.6;">
+      <strong>⚠️ แจ้งเตือนการตั้งค่า Supabase:</strong> พบว่าตัวแปร <code>SUPABASE_ANON_KEY</code> ใน Vercel ยังเป็นค่าข้อความตัวอย่าง ("SUPABASE_ANON_KEY") กรุณานำ Anon Public Key จาก Supabase Dashboard -> Project Settings -> API มาแก้ไขใน Vercel Settings เพื่อให้ข้อมูลคำสั่งซื้อซิงก์เข้า Database อัตโนมัติครับ
+    </div>
     <div class="admin-tabs">
       <button class="admin-tab active" onclick="switchAdminTab('orders', this)">
         📦 คำสั่งซื้อ (Orders)
@@ -323,6 +326,9 @@
           </button>
           <button id="btnSyncSheets" class="btn" style="padding:7px 14px; font-size:13px; background:#28a745; color:#FFF; border:none; border-radius:20px; cursor:pointer; font-weight:500;" onclick="syncAllOrdersToGoogleSheets()">
             📤 ซิงก์เข้า Google Sheets
+          </button>
+          <button id="btnSyncDb" class="btn" style="padding:7px 14px; font-size:13px; background:#3B82F6; color:#FFF; border:none; border-radius:20px; cursor:pointer; font-weight:500;" onclick="syncOrdersToSupabase()">
+            ☁️ ซิงก์เข้า Supabase
           </button>
           <button class="btn outline-btn" style="padding:7px 14px; font-size:13px;" onclick="exportOrdersToCSV()">
             📥 ส่งออก CSV
@@ -444,6 +450,10 @@
     window.addEventListener("DOMContentLoaded", async function() {
       if (typeof loadSystemConfig === "function") {
         await loadSystemConfig();
+      }
+      if (BAKE_HOUSE_CONFIG && (!BAKE_HOUSE_CONFIG.supabaseAnonKey || BAKE_HOUSE_CONFIG.supabaseAnonKey === "SUPABASE_ANON_KEY" || BAKE_HOUSE_CONFIG.supabaseAnonKey.length < 20)) {
+        const banner = document.getElementById("keyWarningBanner");
+        if (banner) banner.style.display = "block";
       }
       if (sessionStorage.getItem("bake_house_admin_logged") === "true") {
         document.getElementById("authOverlay").style.display = "none";
@@ -627,6 +637,69 @@
       if (m === "transfer") return "โอนธนาคาร";
       if (m === "cod") return "เก็บปลายทาง";
       return m || "-";
+    }
+
+    async function syncOrdersToSupabase() {
+      const btn = document.getElementById("btnSyncDb");
+      if (!allOrders || allOrders.length === 0) {
+        alert("ไม่มีรายการคำสั่งซื้อสำหรับส่งเข้า Supabase");
+        return;
+      }
+
+      if (!confirm(`ต้องการส่งคำสั่งซื้อทั้งหมด (${allOrders.length} รายการ) เข้าฐานข้อมูล Supabase ใช่หรือไม่?`)) {
+        return;
+      }
+
+      const origText = btn ? btn.innerHTML : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "⏳ กำลังบันทึกลง Supabase...";
+      }
+
+      try {
+        if (!supabaseClient) await loadSystemConfig();
+        if (!supabaseClient) {
+          alert("⚠️ ยังเชื่อมต่อ Supabase ไม่ได้ กรุณาตรวจสอบว่าใส่ SUPABASE_ANON_KEY ใน Vercel ถูกต้องแล้วหรือยัง");
+          return;
+        }
+
+        let savedCount = 0;
+        for (const o of allOrders) {
+          const payload = {
+            order_number: o.order_number || o.orderNumber,
+            customer_name: o.customer_name || o.name || "ลูกค้า",
+            customer_phone: o.customer_phone || o.phone || "",
+            customer_email: o.customer_email || o.email || "",
+            customer_address: o.customer_address || o.address || "-",
+            province: o.province || "",
+            postal_code: o.postal_code || o.postalCode || "",
+            items: o.items || [],
+            subtotal: o.subtotal || 0,
+            shipping_fee: o.shipping_fee || o.shippingFee || 0,
+            discount: o.discount || 0,
+            total_amount: o.total_amount || o.totalAmount || 0,
+            payment_method: o.payment_method || o.paymentMethod || "transfer",
+            payment_status: o.payment_status || o.paymentStatus || "pending",
+            order_status: o.order_status || o.orderStatus || "pending",
+            slip_url: o.slip_url || o.slipUrl || "",
+            notes: o.notes || ""
+          };
+
+          const { error } = await supabaseClient.from("orders").upsert([payload], { onConflict: "order_number" });
+          if (!error) savedCount++;
+          else console.warn("Supabase upsert order error:", error);
+        }
+
+        alert(`☁️ บันทึกคำสั่งซื้อเข้า Supabase สำเร็จ ${savedCount} จาก ${allOrders.length} รายการ!\n\nทีนี้เมื่อเปิด Google Sheets แล้วกดซิงก์ ข้อมูลจะปรากฏแน่นอนครับ`);
+      } catch (e) {
+        console.error("syncOrdersToSupabase error:", e);
+        alert("⚠️ เกิดข้อผิดพลาด: " + (e.message || e));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+      }
     }
 
     async function syncAllOrdersToGoogleSheets() {
