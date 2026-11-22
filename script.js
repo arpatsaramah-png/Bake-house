@@ -188,7 +188,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     renderBestProducts();
     renderProducts();
     updateCart();
-    checkDatabaseStatusBadge();
 });
 
 /* ================= DATABASE STATUS BADGE ================= */

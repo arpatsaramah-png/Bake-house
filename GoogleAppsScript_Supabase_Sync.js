@@ -309,21 +309,50 @@ function syncContactsFromSupabase() {
 
 
 /**
- * 5. Webhook: รับข้อมูลออเดอร์ใหม่แบบเรียลไทม์จากหน้าเว็บ (POST endpoint)
+ * 5. Webhook: รับข้อมูลออเดอร์ใหม่แบบเรียลไทม์จากหน้าเว็บ (GET & POST endpoint)
  */
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ 
+    status: "online", 
+    message: "BAKE HOUSE Google Sheets Webhook is active and ready!" 
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "No data received" }))
-        .setMimeType(ContentService.MimeType.JSON);
+    let data = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+      } catch (err) {
+        data = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      data = e.parameter;
     }
 
-    const data = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(CONFIG.SHEET_ORDERS);
+
+    // หาชีตคำสั่งซื้อ: ถ้าไม่มีชื่อ "📦 คำสั่งซื้อ (Orders)" ให้หาชีตที่มีคำว่า Orders/คำสั่งซื้อ หรือใช้ชีตแรกเลยอัตโนมัติ
+    let sheet = ss.getSheetByName(CONFIG.SHEET_ORDERS);
     if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Sheet not found" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      const sheets = ss.getSheets();
+      sheet = sheets.find(s => s.getName().includes("Order") || s.getName().includes("คำสั่งซื้อ")) || sheets[0];
+    }
+
+    // ถ้าชีตยังว่างเปล่า (ยังไม่มีหัวตาราง) ให้สร้างหัวตารางให้อัตโนมัติทันที
+    if (sheet.getLastRow() === 0) {
+      const orderHeaders = [
+        "วัน-เวลาสั่งซื้อ", "รหัสคำสั่งซื้อ", "ชื่อลูกค้า", "เบอร์โทร", "อีเมล", 
+        "ที่อยู่จัดส่ง", "จังหวัด", "รหัสไปรษณีย์", "รายการสินค้าที่สั่ง", 
+        "ยอดสินค้า (฿)", "ค่าส่ง (฿)", "ส่วนลด (฿)", "ยอดชำระสุทธิ (฿)", 
+        "วิธีชำระเงิน", "สถานะชำระเงิน", "สถานะคำสั่งซื้อ", "ลิงก์สลิป/สลิป", "หมายเหตุ"
+      ];
+      sheet.appendRow(orderHeaders);
+      try {
+        formatHeaderRow(sheet, orderHeaders.length, "#6B4534", "#FFFFFF");
+        sheet.setFrozenRows(1);
+      } catch (fErr) {}
     }
 
     let itemsText = "";
@@ -331,39 +360,48 @@ function doPost(e) {
       itemsText = data.items.map(it => `${it.name} (x${it.quantity}) - ฿${it.price * it.quantity}`).join("\n");
     } else if (typeof data.items === 'object') {
       itemsText = JSON.stringify(data.items);
+    } else {
+      itemsText = String(data.items || "");
     }
 
     const dateStr = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd HH:mm:ss");
 
     const newRow = [
       dateStr,
-      data.order_number || "",
-      data.customer_name || "",
-      data.customer_phone || "",
-      data.customer_email || "",
-      data.customer_address || "",
+      data.order_number || data.orderNumber || "",
+      data.customer_name || data.name || "",
+      data.customer_phone || data.phone || "",
+      data.customer_email || data.email || "",
+      data.customer_address || data.address || "",
       data.province || "",
-      data.postal_code || "",
+      data.postal_code || data.postalCode || "",
       itemsText,
       Number(data.subtotal || 0),
-      Number(data.shipping_fee || 0),
+      Number(data.shipping_fee || data.shippingFee || 0),
       Number(data.discount || 0),
-      Number(data.total_amount || 0),
-      translatePaymentMethod(data.payment_method),
-      translatePaymentStatus(data.payment_status || "pending"),
-      translateOrderStatus(data.order_status || "pending"),
-      data.slip_url || "",
+      Number(data.total_amount || data.totalAmount || 0),
+      translatePaymentMethod(data.payment_method || data.paymentMethod),
+      translatePaymentStatus(data.payment_status || data.paymentStatus || "pending"),
+      translateOrderStatus(data.order_status || data.orderStatus || "pending"),
+      data.slip_url || data.slipUrl || "",
       data.notes || ""
     ];
 
     sheet.appendRow(newRow);
-    updateDashboard();
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", order_number: data.order_number }))
-      .setMimeType(ContentService.MimeType.JSON);
+    try {
+      updateDashboard();
+    } catch (dErr) {}
+
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "success", 
+      order_number: data.order_number || data.orderNumber 
+    })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "error", 
+      message: err.toString() 
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 

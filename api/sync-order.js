@@ -39,7 +39,8 @@ module.exports = async (req, res) => {
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(orderData)
+      body: JSON.stringify(orderData),
+      redirect: "follow"
     });
 
     const responseText = await response.text();
