@@ -263,6 +263,183 @@ function getCurrentAuthUser() {
 
 // ====================== DATABASE HELPER FUNCTIONS ======================
 
+const DEFAULT_BAKERY_PRODUCTS = [
+  {
+    id: 1,
+    name: "Butter Croissant",
+    category: "Croissant",
+    price: 65,
+    image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=800&q=85",
+    description: "ครัวซองต์เนยสด หอมกรอบนอก นุ่มด้านใน ผลิตด้วยเนยฝรั่งเศสแท้",
+    rating: 5,
+    best: true,
+    stock: 50
+  },
+  {
+    id: 2,
+    name: "Milk Bread",
+    category: "Bread",
+    price: 55,
+    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=85",
+    description: "ขนมปังนมสด เนื้อนุ่มฟู หอมกลิ่นนมฮอกไกโด",
+    rating: 5,
+    best: true,
+    stock: 40
+  },
+  {
+    id: 3,
+    name: "Chocolate Cake",
+    category: "Cake",
+    price: 350,
+    image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=85",
+    description: "เค้กช็อกโกแลตเนื้อนุ่ม รสชาติเข้มข้น ดาร์กช็อกโกแลตแท้",
+    rating: 5,
+    best: true,
+    stock: 20
+  },
+  {
+    id: 4,
+    name: "Chocolate Cookie",
+    category: "Cookie",
+    price: 45,
+    image: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=800&q=85",
+    description: "คุกกี้ช็อกโกแลตชิป หอมเนยและช็อกโกแลต กรอบนอกนุ่มใน",
+    rating: 5,
+    best: true,
+    stock: 60
+  },
+  {
+    id: 5,
+    name: "Chocolate Croissant",
+    category: "Croissant",
+    price: 75,
+    image: "https://images.unsplash.com/photo-1623334044303-241021148842?auto=format&fit=crop&w=800&q=85",
+    description: "ครัวซองต์สอดไส้ช็อกโกแลตเข้มข้น หอมละมุน",
+    rating: 5,
+    stock: 30
+  },
+  {
+    id: 6,
+    name: "Almond Croissant",
+    category: "Croissant",
+    price: 85,
+    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=85",
+    description: "ครัวซองต์อัลมอนด์กรอบ หอมมัน โรยอัลมอนด์สไลซ์แน่นๆ",
+    rating: 5,
+    stock: 35
+  },
+  {
+    id: 7,
+    name: "Strawberry Cake",
+    category: "Cake",
+    price: 380,
+    image: "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=800&q=85",
+    description: "เค้กสตรอว์เบอร์รีครีมสด หวานละมุน สตรอว์เบอร์รีสดลูกโต",
+    rating: 5,
+    stock: 15
+  },
+  {
+    id: 8,
+    name: "Vanilla Cake",
+    category: "Cake",
+    price: 320,
+    image: "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=800&q=85",
+    description: "เค้กวานิลลาหอมละมุน กลิ่นมาดากัสการ์วานิลลาแท้",
+    rating: 5,
+    stock: 20
+  },
+  {
+    id: 9,
+    name: "Birthday Cake",
+    category: "Cake",
+    price: 450,
+    image: "https://images.unsplash.com/photo-1558301211-0d8c8ddee6ec?auto=format&fit=crop&w=800&q=85",
+    description: "เค้กวันเกิดดีไซน์สวยสำหรับโอกาสพิเศษ",
+    rating: 5,
+    stock: 10
+  },
+  {
+    id: 10,
+    name: "Butter Cookie",
+    category: "Cookie",
+    price: 40,
+    image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&w=800&q=85",
+    description: "คุกกี้เนยสด หอมกรอบ ละลายในปาก",
+    rating: 5,
+    stock: 50
+  },
+  {
+    id: 11,
+    name: "Matcha Cookie",
+    category: "Cookie",
+    price: 50,
+    image: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=800&q=85",
+    description: "คุกกี้ชาเขียวมัทฉะอุจิแท้ หอมกลิ่นชาเขียวเข้มข้น",
+    rating: 5,
+    stock: 45
+  },
+  {
+    id: 12,
+    name: "Brownie",
+    category: "Bakery",
+    price: 55,
+    image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476e?auto=format&fit=crop&w=800&q=85",
+    description: "บราวนี่ช็อกโกแลตฟัดจ์ เนื้อหนึบเข้มข้น ดาร์กช็อก 70%",
+    rating: 5,
+    stock: 40
+  },
+  {
+    id: 13,
+    name: "Muffin",
+    category: "Bakery",
+    price: 45,
+    image: "https://images.unsplash.com/photo-1558304970-abd589baebe5?auto=format&fit=crop&w=800&q=85",
+    description: "มัฟฟินบลูเบอร์รีเนื้อนุ่ม หอมอบใหม่จากเตา",
+    rating: 5,
+    stock: 30
+  },
+  {
+    id: 14,
+    name: "Danish",
+    category: "Bakery",
+    price: 65,
+    image: "https://images.unsplash.com/photo-1623334044303-241021148842?auto=format&fit=crop&w=800&q=85",
+    description: "เดนิชเพสตรี้ผลไม้ แป้งกรอบนอกนุ่มใน คัสตาร์ดหอมหวาน",
+    rating: 5,
+    stock: 25
+  },
+  {
+    id: 15,
+    name: "Macaron",
+    category: "Bakery",
+    price: 60,
+    image: "https://images.unsplash.com/photo-1569864358642-9d1684040f43?auto=format&fit=crop&w=800&q=85",
+    description: "มาการองฝรั่งเศสหลากหลายรสชาติ สีสันสวยงาม ไส้แน่น",
+    rating: 5,
+    stock: 60
+  },
+  {
+    id: 16,
+    name: "Chocolate Bread",
+    category: "Bread",
+    price: 60,
+    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=85",
+    description: "ขนมปังช็อกโกแลตนุ่มหนึบ สอดไส้ลาวาเข้มข้น",
+    rating: 5,
+    stock: 30
+  },
+  {
+    id: 17,
+    name: "Cream Bread",
+    category: "Bread",
+    price: 60,
+    image: "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?auto=format&fit=crop&w=800&q=85",
+    description: "ขนมปังไส้ครีมคัสตาร์ด เนื้อนุ่ม ไส้ครีมหอมละมุน",
+    rating: 5,
+    stock: 35
+  }
+];
+
 /**
  * 1. ดึงรายการสินค้าทั้งหมดจาก Supabase
  */
@@ -288,7 +465,7 @@ async function getDbProducts() {
       console.warn("⚠️ Cannot fetch from Supabase, falling back to local products:", e.message);
     }
   }
-  return null;
+  return DEFAULT_BAKERY_PRODUCTS;
 }
 
 /**

@@ -321,6 +321,9 @@
           <button class="btn primary-btn" style="padding:7px 14px; font-size:13px;" onclick="loadAdminData()">
             🔄 รีเฟรชข้อมูล
           </button>
+          <button id="btnSyncSheets" class="btn" style="padding:7px 14px; font-size:13px; background:#28a745; color:#FFF; border:none; border-radius:20px; cursor:pointer; font-weight:500;" onclick="syncAllOrdersToGoogleSheets()">
+            📤 ซิงก์เข้า Google Sheets
+          </button>
           <button class="btn outline-btn" style="padding:7px 14px; font-size:13px;" onclick="exportOrdersToCSV()">
             📥 ส่งออก CSV
           </button>
@@ -360,9 +363,17 @@
           <h2 style="font-size:20px; color:var(--dark-brown); margin:0;">รายการสินค้าในร้าน (Products)</h2>
           <small style="color:var(--gray);">จัดการราคา หมวดหมู่ และสถานะการวางจำหน่าย</small>
         </div>
-        <button class="btn primary-btn" style="padding:7px 14px; font-size:13px;" onclick="loadProductsTab()">
-          🔄 รีเฟรชสินค้า
-        </button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn primary-btn" style="padding:7px 14px; font-size:13px;" onclick="loadProductsTab()">
+            🔄 รีเฟรชสินค้า
+          </button>
+          <button id="btnSeedProducts" class="btn" style="padding:7px 14px; font-size:13px; background:var(--gold); color:#FFF; border:none; border-radius:20px; cursor:pointer; font-weight:500;" onclick="seedDefaultProductsToSupabase()">
+            ✨ บันทึกสินค้าเข้า Supabase
+          </button>
+          <button id="btnSyncProductsSheet" class="btn" style="padding:7px 14px; font-size:13px; background:#28a745; color:#FFF; border:none; border-radius:20px; cursor:pointer; font-weight:500;" onclick="syncProductsToGoogleSheets()">
+            📤 ซิงก์สินค้าเข้า Google Sheets
+          </button>
+        </div>
       </div>
 
       <div class="data-table-wrap">
@@ -618,6 +629,181 @@
       return m || "-";
     }
 
+    async function syncAllOrdersToGoogleSheets() {
+      const btn = document.getElementById("btnSyncSheets");
+      if (!allOrders || allOrders.length === 0) {
+        alert("ไม่มีรายการคำสั่งซื้อสำหรับซิงก์");
+        return;
+      }
+
+      if (!confirm(`ต้องการส่งข้อมูลคำสั่งซื้อทั้งหมด (${allOrders.length} รายการ) เข้า Google Sheets ใช่หรือไม่?`)) {
+        return;
+      }
+
+      const origText = btn ? btn.innerHTML : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `⏳ กำลังซิงก์ 0/${allOrders.length}...`;
+      }
+
+      let successCount = 0;
+      let errMsgs = [];
+
+      for (let i = 0; i < allOrders.length; i++) {
+        const o = allOrders[i];
+        if (btn) btn.innerHTML = `⏳ กำลังซิงก์ ${i + 1}/${allOrders.length}...`;
+        
+        try {
+          const payload = {
+            order_number: o.order_number || o.orderNumber,
+            customer_name: o.customer_name || o.name,
+            customer_phone: o.customer_phone || o.phone,
+            customer_email: o.customer_email || o.email || "",
+            customer_address: o.customer_address || o.address,
+            province: o.province || "",
+            postal_code: o.postal_code || o.postalCode || "",
+            items: o.items || [],
+            subtotal: o.subtotal || 0,
+            shipping_fee: o.shipping_fee || o.shippingFee || 0,
+            discount: o.discount || 0,
+            total_amount: o.total_amount || o.totalAmount || 0,
+            payment_method: o.payment_method || o.paymentMethod,
+            payment_status: o.payment_status || o.paymentStatus || "pending",
+            order_status: o.order_status || o.orderStatus || "pending",
+            slip_url: o.slip_url || o.slipUrl || "",
+            notes: o.notes || ""
+          };
+
+          const res = await fetch("/api/sync-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const json = await res.json();
+          if (res.ok && json.status === "success") {
+            successCount++;
+          } else {
+            console.warn("Sync error for order:", o.order_number, json);
+            if (json.message) errMsgs.push(json.message);
+          }
+        } catch (err) {
+          console.error("Sync exception for order:", err);
+          errMsgs.push(err.message || String(err));
+        }
+      }
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+
+      if (successCount > 0) {
+        alert(`✅ ส่งข้อมูลเข้า Google Sheets สำเร็จ ${successCount} จาก ${allOrders.length} รายการ!\n\nเปิดแท็บ Google Sheets ดูที่หน้าแดชบอร์ดหรือคำสั่งซื้อได้ทันทีครับ`);
+      } else {
+        alert(`⚠️ ซิงก์ไม่สำเร็จ: ` + (errMsgs[0] || "โปรดตรวจสอบ GOOGLE_SHEET_WEBHOOK_URL ใน Vercel"));
+      }
+    }
+
+    async function seedDefaultProductsToSupabase() {
+      const btn = document.getElementById("btnSeedProducts");
+      const origText = btn ? btn.innerHTML : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "⏳ กำลังบันทึกเข้า Supabase...";
+      }
+
+      try {
+        if (!supabaseClient) {
+          await loadSystemConfig();
+        }
+        if (!supabaseClient) {
+          alert("⚠️ ไม่พบการเชื่อมต่อ Supabase โปรดตรวจสอบว่ามี Vercel Environment Variables ครบถ้วน");
+          return;
+        }
+
+        const listToSeed = (typeof DEFAULT_BAKERY_PRODUCTS !== "undefined" && DEFAULT_BAKERY_PRODUCTS.length > 0)
+          ? DEFAULT_BAKERY_PRODUCTS
+          : (typeof products !== "undefined" ? products : []);
+
+        if (listToSeed.length === 0) {
+          alert("⚠️ ไม่พบข้อมูลสินค้าต้นแบบ");
+          return;
+        }
+
+        const dbRows = listToSeed.map(p => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          image: p.image,
+          description: p.description || "",
+          rating: p.rating || 5,
+          is_best: Boolean(p.best || p.is_best),
+          stock: p.stock || 50,
+          is_active: true
+        }));
+
+        const { data, error } = await supabaseClient
+          .from("products")
+          .upsert(dbRows, { onConflict: "id" });
+
+        if (error) {
+          console.error("Seed products error:", error);
+          alert("⚠️ เกิดข้อผิดพลาดในการบันทึกลง Supabase: " + error.message);
+          return;
+        }
+
+        alert(`✨ บันทึกสินค้าทั้ง ${dbRows.length} รายการเข้าสู่ Supabase สำเร็จเรียบร้อยแล้ว!`);
+        await loadProductsTab();
+      } catch (e) {
+        console.error("Seed error:", e);
+        alert("⚠️ เกิดข้อผิดพลาด: " + (e.message || e));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+      }
+    }
+
+    async function syncProductsToGoogleSheets() {
+      const btn = document.getElementById("btnSyncProductsSheet");
+      const origText = btn ? btn.innerHTML : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "⏳ กำลังซิงก์สินค้า...";
+      }
+
+      try {
+        let prodList = [];
+        if (typeof getDbProducts === "function") {
+          prodList = await getDbProducts();
+        }
+        if (!prodList || prodList.length === 0) {
+          prodList = typeof DEFAULT_BAKERY_PRODUCTS !== "undefined" ? DEFAULT_BAKERY_PRODUCTS : [];
+        }
+
+        const res = await fetch("/api/sync-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync_products",
+            products: prodList
+          })
+        });
+
+        alert(`✅ ส่งข้อมูลสินค้า (${prodList.length} รายการ) เข้า Google Sheets สำเร็จเรียบร้อยแล้ว!`);
+      } catch (e) {
+        console.error("Sync products error:", e);
+        alert("⚠️ เกิดข้อผิดพลาดในการซิงก์สินค้าเข้า Google Sheets: " + (e.message || e));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+      }
+    }
+
     async function loadProductsTab() {
       const tbody = document.getElementById("productsTableBody");
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">กำลังโหลด...</td></tr>`;
@@ -627,16 +813,23 @@
         prodList = await getDbProducts();
       }
       if (!prodList || prodList.length === 0) {
-        prodList = typeof products !== "undefined" ? products : [];
+        prodList = (typeof DEFAULT_BAKERY_PRODUCTS !== "undefined" && DEFAULT_BAKERY_PRODUCTS.length > 0)
+          ? DEFAULT_BAKERY_PRODUCTS
+          : (typeof products !== "undefined" ? products : []);
+      }
+
+      if (prodList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--gray);">ไม่พบสินค้า กรุณากดปุ่ม "✨ บันทึกสินค้าเข้า Supabase" ด้านบน</td></tr>`;
+        return;
       }
 
       tbody.innerHTML = prodList.map(p => `
         <tr>
-          <td><img src="${p.image}" style="width:45px; height:45px; object-fit:cover; border-radius:8px;"></td>
+          <td><img src="${p.image}" style="width:45px; height:45px; object-fit:cover; border-radius:8px;" onerror="this.src='https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=100&q=80'"></td>
           <td><strong>${p.name}</strong></td>
           <td>${p.category}</td>
           <td>฿${p.price}</td>
-          <td>${p.best ? "★ ขายดี" : "-"}</td>
+          <td>${p.best || p.is_best ? "★ ขายดี" : "-"}</td>
           <td>${p.stock || 50}</td>
           <td><span class="status-badge status-completed">เปิดจำหน่าย</span></td>
         </tr>

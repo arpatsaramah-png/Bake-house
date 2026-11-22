@@ -384,14 +384,59 @@ function doPost(e) {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // หาชีตคำสั่งซื้อ: ถ้าไม่มีชื่อ "📦 คำสั่งซื้อ (Orders)" ให้หาชีตที่มีคำว่า Orders/คำสั่งซื้อ หรือใช้ชีตแรกเลยอัตโนมัติ
+    // 1. ซิงก์สินค้า (Products) จากหน้าเว็บ / แอดมิน
+    if (data.action === "sync_products" || data.type === "products" || Array.isArray(data.products)) {
+      let sheetProd = ss.getSheetByName(CONFIG.SHEET_PRODUCTS);
+      if (!sheetProd) {
+        sheetProd = ss.insertSheet(CONFIG.SHEET_PRODUCTS);
+      }
+      const productHeaders = [
+        "ID", "ชื่อสินค้า", "หมวดหมู่", "ราคา (฿)", "คะแนนรีวิว", 
+        "สินค้าขายดี?", "คงเหลือสต็อก", "เปิดขายอยู่หรือไม่", "ลิงก์รูปภาพ", "รายละเอียดสินค้า"
+      ];
+      if (sheetProd.getLastRow() === 0) {
+        sheetProd.appendRow(productHeaders);
+        try {
+          formatHeaderRow(sheetProd, productHeaders.length, "#C99458", "#FFFFFF");
+          sheetProd.setFrozenRows(1);
+        } catch (fErr) {}
+      }
+
+      const prodList = data.products || (Array.isArray(data) ? data : []);
+      if (prodList.length > 0) {
+        const lastR = sheetProd.getLastRow();
+        if (lastR > 1) {
+          sheetProd.getRange(2, 1, lastR - 1, 10).clearContent();
+        }
+        const rows = prodList.map(p => [
+          p.id,
+          p.name || "",
+          p.category || "",
+          Number(p.price || 0),
+          Number(p.rating || 5),
+          p.best || p.is_best ? "★ ขายดี" : "-",
+          p.stock || 0,
+          p.is_active !== false ? "เปิดขาย" : "ปิดชั่วคราว",
+          p.image || "",
+          p.description || ""
+        ]);
+        sheetProd.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+        sheetProd.autoResizeColumns(1, 10);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "success", 
+        message: "Products synced successfully",
+        count: prodList.length 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. ซิงก์คำสั่งซื้อ (Orders)
     let sheet = ss.getSheetByName(CONFIG.SHEET_ORDERS);
     if (!sheet) {
       const sheets = ss.getSheets();
       sheet = sheets.find(s => s.getName().includes("Order") || s.getName().includes("คำสั่งซื้อ")) || sheets[0];
     }
 
-    // ถ้าชีตยังว่างเปล่า (ยังไม่มีหัวตาราง) ให้สร้างหัวตารางให้อัตโนมัติทันที
     if (sheet.getLastRow() === 0) {
       const orderHeaders = [
         "วัน-เวลาสั่งซื้อ", "รหัสคำสั่งซื้อ", "ชื่อลูกค้า", "เบอร์โทร", "อีเมล", 
@@ -438,7 +483,25 @@ function doPost(e) {
       data.notes || ""
     ];
 
-    sheet.appendRow(newRow);
+    // ป้องกันออเดอร์ซ้ำด้วย Upsert (ค้นหาจาก order_number ในคอลัมน์ B)
+    const orderNum = String(data.order_number || data.orderNumber || "").trim();
+    let existingRowIdx = -1;
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1 && orderNum) {
+      const existingOrderCols = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+      for (let i = 0; i < existingOrderCols.length; i++) {
+        if (String(existingOrderCols[i][0]).trim() === orderNum) {
+          existingRowIdx = i + 2;
+          break;
+        }
+      }
+    }
+
+    if (existingRowIdx > 0) {
+      sheet.getRange(existingRowIdx, 1, 1, newRow.length).setValues([newRow]);
+    } else {
+      sheet.appendRow(newRow);
+    }
 
     try {
       updateDashboard();
@@ -591,7 +654,7 @@ function translateOrderStatus(status) {
 
 function checkSupabaseConfig() {
   if (CONFIG.SUPABASE_URL.includes("YOUR-PROJECT-ID") || CONFIG.SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")) {
-    SpreadSpreadsheetAlert("⚠️ กรุณาใส่ SUPABASE_URL และ SUPABASE_ANON_KEY ในโค้ด Apps Script ให้ถูกต้องก่อนใช้งาน");
+    SpreadSpreadsheetAlert("⚠️ ยังไม่ได้ใส่ SUPABASE_ANON_KEY ใน Apps Script:\n\nกรุณานำ anon public key จาก Supabase (หรือหน้าแอดมินเว็บ Bake House) มาใส่ที่ CONFIG.SUPABASE_ANON_KEY (บรรทัดที่ 24) ก่อนกดปุ่มนี้ครับ\n\n💡 หรือท่านสามารถเปิดหน้าแอดมินเว็บ (admin.html) แล้วกดปุ่ม '📤 ซิงก์เข้า Google Sheets' ได้ทันทีโดยไม่ต้องใช้ Key นี้ครับ");
     return false;
   }
   return true;
