@@ -56,6 +56,7 @@ async function loadSystemConfig() {
           BAKE_HOUSE_CONFIG.supabaseAnonKey
         );
         console.log("🟢 BAKE HOUSE: Connected to Supabase via Vercel Cloud Config!");
+        setupAuthListeners();
       } catch (err) {
         console.error("🔴 Failed to initialize Supabase client:", err);
       }
@@ -78,6 +79,114 @@ function isSupabaseConfigured() {
          !BAKE_HOUSE_CONFIG.supabaseUrl.includes("YOUR-PROJECT-ID") &&
          BAKE_HOUSE_CONFIG.supabaseAnonKey &&
          !BAKE_HOUSE_CONFIG.supabaseAnonKey.includes("YOUR_SUPABASE_ANON");
+}
+
+// ====================== AUTHENTICATION (GOOGLE LOGIN) ======================
+let currentAuthUser = null;
+let authStateListeners = [];
+
+function onAuthUserChange(callback) {
+  if (typeof callback === "function") {
+    authStateListeners.push(callback);
+    if (currentAuthUser !== null) {
+      callback(currentAuthUser);
+    }
+  }
+}
+
+function notifyAuthUserChange(user) {
+  currentAuthUser = user;
+  authStateListeners.forEach(cb => {
+    try { cb(user); } catch (e) { console.error("Auth listener error:", e); }
+  });
+}
+
+function extractUserInfo(user) {
+  if (!user) return null;
+  const meta = user.user_metadata || {};
+  return {
+    id: user.id,
+    email: user.email || meta.email || "",
+    name: meta.full_name || meta.name || (user.email ? user.email.split("@")[0] : "ผู้ใช้งาน"),
+    avatar: meta.avatar_url || meta.picture || ""
+  };
+}
+
+async function setupAuthListeners() {
+  if (!supabaseClient) return;
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session && session.user) {
+      notifyAuthUserChange(extractUserInfo(session.user));
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      console.log("🔐 Supabase Auth Event:", event);
+      if (session && session.user) {
+        notifyAuthUserChange(extractUserInfo(session.user));
+      } else {
+        notifyAuthUserChange(null);
+      }
+    });
+  } catch (err) {
+    console.warn("Auth listeners setup warning:", err);
+  }
+}
+
+/**
+ * ตรวจสอบและเริ่มต้นเซสชัน Login
+ */
+async function initAuthSession() {
+  await loadSystemConfig();
+  if (supabaseClient) {
+    await setupAuthListeners();
+  }
+  return currentAuthUser;
+}
+
+/**
+ * เข้าสู่ระบบด้วย Google ผ่าน Supabase OAuth
+ */
+async function signInWithGoogle() {
+  await loadSystemConfig();
+  if (!supabaseClient) {
+    alert("⚠️ ระบบยังไม่ได้เชื่อมต่อ Supabase Database กรุณาตรวจสอบการตั้งค่า");
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("Google sign in error:", err);
+    alert("⚠️ เข้าสู่ระบบด้วย Google ไม่สำเร็จ: " + (err.message || err) + "\n\n(หากยังไม่ได้เปิดใช้งาน Google Provider ใน Supabase ให้ไปที่ Supabase Dashboard -> Authentication -> Providers -> Google)");
+  }
+}
+
+/**
+ * ออกจากระบบ
+ */
+async function signOutUser() {
+  await loadSystemConfig();
+  if (supabaseClient) {
+    try {
+      await supabaseClient.auth.signOut();
+    } catch (e) {
+      console.warn("Sign out warning:", e);
+    }
+  }
+  notifyAuthUserChange(null);
+}
+
+function getCurrentAuthUser() {
+  return currentAuthUser;
 }
 
 // ====================== DATABASE HELPER FUNCTIONS ======================

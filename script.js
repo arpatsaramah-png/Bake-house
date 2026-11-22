@@ -188,6 +188,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     renderBestProducts();
     renderProducts();
     updateCart();
+
+    // เริ่มต้นระบบ Google Auth และฟังสถานะเข้าสู่ระบบ
+    if (typeof onAuthUserChange === "function") {
+        onAuthUserChange(updateAuthUI);
+    }
+    if (typeof initAuthSession === "function") {
+        initAuthSession();
+    }
 });
 
 /* ================= DATABASE STATUS BADGE ================= */
@@ -497,6 +505,15 @@ function openCheckout() {
 
     // ตั้งค่าข้อมูลธนาคาร / PromptPay ในหน้าสั่งซื้อ
     updatePaymentDisplay();
+
+    // ดึงข้อมูลผู้ใช้งานที่เข้าสู่ระบบด้วย Google มาใส่ฟอร์มอัตโนมัติ
+    const currentU = typeof getCurrentAuthUser === "function" ? getCurrentAuthUser() : null;
+    if (currentU) {
+        const nameEl = document.getElementById("customerName");
+        const emailEl = document.getElementById("customerEmail");
+        if (nameEl && !nameEl.value) nameEl.value = currentU.name || "";
+        if (emailEl && !emailEl.value) emailEl.value = currentU.email || "";
+    }
 
     const checkoutModal = document.getElementById("checkoutModal");
     if (checkoutModal) checkoutModal.classList.add("show");
@@ -919,24 +936,73 @@ function openLogin() {
     if (modal) modal.classList.add("show");
 }
 
-function login(event) {
-    event.preventDefault();
-    const email = event.target.querySelector("input[type='email']").value;
-    closeModal("loginModal");
-    showToast(`👤 เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${email}`);
-
-    // อัปเดตปุ่ม Login ใน header
-    const loginBtn = document.querySelector(".login-btn");
-    if (loginBtn) {
-        loginBtn.innerHTML = `👤 ${email.split("@")[0]}`;
-        loginBtn.onclick = () => {
-            if (confirm("ต้องการออกจากระบบหรือไม่?")) {
-                loginBtn.innerHTML = "👤 Login";
-                loginBtn.onclick = openLogin;
-                showToast("ออกจากระบบแล้ว");
-            }
-        };
+async function handleGoogleLogin() {
+    if (typeof signInWithGoogle === "function") {
+        await signInWithGoogle();
+    } else {
+        showToast("⚠️ ระบบ Supabase Auth ยังไม่พร้อมใช้งาน");
     }
+}
+
+async function handleLogout() {
+    if (confirm("คุณต้องการออกจากระบบหรือไม่?")) {
+        if (typeof signOutUser === "function") {
+            await signOutUser();
+        }
+        closeModal("loginModal");
+        showToast("🚪 ออกจากระบบเรียบร้อยแล้ว");
+    }
+}
+
+function updateAuthUI(user) {
+    const guestView = document.getElementById("loginViewGuest");
+    const userView = document.getElementById("loginViewUser");
+    const navContent = document.getElementById("navLoginContent");
+    const navBtn = document.getElementById("navLoginBtn");
+
+    if (user) {
+        // อัปเดตใน Modal
+        if (guestView) guestView.style.display = "none";
+        if (userView) userView.style.display = "block";
+
+        const avatarEl = document.getElementById("userProfileAvatar");
+        const nameEl = document.getElementById("userProfileName");
+        const emailEl = document.getElementById("userProfileEmail");
+
+        if (avatarEl) avatarEl.src = user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80";
+        if (nameEl) nameEl.textContent = user.name || "ผู้ใช้งาน";
+        if (emailEl) emailEl.textContent = user.email || "";
+
+        // อัปเดตปุ่มในแถบเมนู (Navbar)
+        if (navContent) {
+            const firstName = (user.name || "สมาชิก").split(" ")[0];
+            const avatarHtml = user.avatar 
+                ? `<img src="${user.avatar}" class="nav-user-avatar" alt="${user.name}">` 
+                : `👤`;
+            navContent.innerHTML = `${avatarHtml} <span>${firstName}</span>`;
+        }
+        if (navBtn) {
+            navBtn.style.borderColor = "var(--gold)";
+            navBtn.style.background = "#FFF9F2";
+        }
+    } else {
+        // สถานะ Guest
+        if (guestView) guestView.style.display = "block";
+        if (userView) userView.style.display = "none";
+
+        if (navContent) {
+            navContent.innerHTML = `👤 Login`;
+        }
+        if (navBtn) {
+            navBtn.style.borderColor = "var(--brown)";
+            navBtn.style.background = "transparent";
+        }
+    }
+}
+
+function login(event) {
+    if (event) event.preventDefault();
+    handleGoogleLogin();
 }
 
 function toggleMenu() {
