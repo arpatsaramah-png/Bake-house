@@ -132,37 +132,75 @@ function syncOrdersFromSupabase() {
 
     const orders = JSON.parse(response.getContentText());
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(CONFIG.SHEET_ORDERS);
+    let sheet = ss.getSheetByName(CONFIG.SHEET_ORDERS);
+    if (!sheet) {
+      const sheets = ss.getSheets();
+      sheet = sheets.find(s => s.getName().includes("Order") || s.getName().includes("คำสั่งซื้อ")) || sheets[0];
+    }
+
     if (!sheet) {
       SpreadSpreadsheetAlert("ไม่พบแผ่นงานคำสั่งซื้อ กรุณากด Setup Sheets ก่อน");
       return;
     }
 
-    // ล้างข้อมูลเดิมตั้งแต่แถวที่ 2
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, 18).clearContent();
+    // ถ้าชีตยังไม่มีหัวตาราง ให้สร้างหัวตารางก่อน
+    if (sheet.getLastRow() === 0) {
+      const orderHeaders = [
+        "วัน-เวลาสั่งซื้อ", "รหัสคำสั่งซื้อ", "ชื่อลูกค้า", "เบอร์โทร", "อีเมล", 
+        "ที่อยู่จัดส่ง", "จังหวัด", "รหัสไปรษณีย์", "รายการสินค้าที่สั่ง", 
+        "ยอดสินค้า (฿)", "ค่าส่ง (฿)", "ส่วนลด (฿)", "ยอดชำระสุทธิ (฿)", 
+        "วิธีชำระเงิน", "สถานะชำระเงิน", "สถานะคำสั่งซื้อ", "ลิงก์สลิป/สลิป", "หมายเหตุ"
+      ];
+      sheet.appendRow(orderHeaders);
+      try {
+        formatHeaderRow(sheet, orderHeaders.length, "#6B4534", "#FFFFFF");
+        sheet.setFrozenRows(1);
+      } catch (fErr) {}
     }
 
     if (!orders || orders.length === 0) {
-      SpreadSpreadsheetAlert("ยังไม่มีข้อมูลคำสั่งซื้อใน Supabase");
+      SpreadSpreadsheetAlert("ℹ️ ไม่พบข้อมูลคำสั่งซื้อใหม่จาก Supabase (ข้อมูลเดิมในชีตปลอดภัย ไม่ถูกลบ)");
+      updateDashboard();
       return;
     }
 
-    const rows = orders.map(order => {
+    // 🔒 ระบบความปลอดภัยข้อมูล: ห้ามลบข้อมูลเก่าเด็ดขาด!
+    // อ่านรหัสคำสั่งซื้อเดิมทั้งหมดเพื่อป้องกันข้อมูลซ้ำซ้อน
+    const lastRow = sheet.getLastRow();
+    const existingOrderMap = {}; // รหัสออเดอร์ -> เลขแถวใน Sheet
+
+    if (lastRow > 1) {
+      const existingData = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+      existingData.forEach((row, idx) => {
+        const orderNum = String(row[0]).trim();
+        if (orderNum) {
+          existingOrderMap[orderNum] = idx + 2;
+        }
+      });
+    }
+
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    orders.forEach(order => {
+      const orderNum = String(order.order_number || "").trim();
+      if (!orderNum) return;
+
       // จัดรูปแบบรายการสินค้า
       let itemsText = "";
       if (Array.isArray(order.items)) {
         itemsText = order.items.map(it => `${it.name} (x${it.quantity}) - ฿${it.price * it.quantity}`).join("\n");
       } else if (typeof order.items === 'object') {
         itemsText = JSON.stringify(order.items);
+      } else {
+        itemsText = String(order.items || "");
       }
 
       const dateStr = order.created_at ? Utilities.formatDate(new Date(order.created_at), "GMT+7", "yyyy-MM-dd HH:mm:ss") : "";
 
-      return [
+      const rowData = [
         dateStr,
-        order.order_number || "",
+        orderNum,
         order.customer_name || "",
         order.customer_phone || "",
         order.customer_email || "",
@@ -180,13 +218,26 @@ function syncOrdersFromSupabase() {
         order.slip_url || "",
         order.notes || ""
       ];
+
+      if (existingOrderMap[orderNum]) {
+        // ออเดอร์มีอยู่แล้ว: อัปเดตเฉพาะสถานะคำสั่งซื้อและการชำระเงิน (ไม่ลบ ไม่ทับข้อมูลเดิม)
+        const rowIdx = existingOrderMap[orderNum];
+        sheet.getRange(rowIdx, 14, 1, 3).setValues([[
+          translatePaymentMethod(order.payment_method),
+          translatePaymentStatus(order.payment_status),
+          translateOrderStatus(order.order_status)
+        ]]);
+        updatedCount++;
+      } else {
+        // ออเดอร์ใหม่: ต่อท้ายตารางสะสมไปเรื่อยๆ
+        sheet.appendRow(rowData);
+        existingOrderMap[orderNum] = sheet.getLastRow();
+        addedCount++;
+      }
     });
 
-    sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
-    sheet.autoResizeColumns(1, 18);
     updateDashboard();
-
-    SpreadSpreadsheetAlert(`ดึงข้อมูลคำสั่งซื้อสำเร็จทั้งหมด ${rows.length} รายการ!`);
+    SpreadSpreadsheetAlert(`ซิงก์ข้อมูลเสร็จสิ้น! เพิ่มออเดอร์ใหม่ ${addedCount} รายการ, อัปเดตสถานะ ${updatedCount} รายการ (ข้อมูลเก่าสะสมปลอดภัย 100%)`);
   } catch (error) {
     Logger.log("Exception: " + error.toString());
     SpreadSpreadsheetAlert("เกิดข้อผิดพลาด: " + error.message);
