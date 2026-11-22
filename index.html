@@ -737,15 +737,18 @@
         ×
       </button>
 
-      <div style="text-align:center; margin-bottom:15px;">
-        <span style="font-size:32px;">📦</span>
-        <h2 style="font-family:'Playfair Display', serif; color:var(--dark-brown); margin:5px 0;">ติดตามคำสั่งซื้อ</h2>
-        <p style="color:var(--gray); font-size:14px;">กรอกรหัสคำสั่งซื้อ (เช่น BH261108-xxxx) หรือเบอร์โทรศัพท์</p>
+      <div style="text-align:center; margin-bottom:12px;">
+        <span style="font-size:32px;">🥐</span>
+        <h2 style="font-family:'Playfair Display', serif; color:var(--dark-brown); margin:4px 0;">ติดตามคำสั่งซื้อ (Live Tracking)</h2>
+        <p style="color:var(--gray); font-size:13px; margin:0;">เช็คสถานะขนมปังอบใหม่ และเส้นทางการจัดส่งแบบเรียลไทม์</p>
       </div>
 
+      <!-- Quick Recent Orders Chips (ไม่ต้องพิมพ์!) -->
+      <div id="quickRecentOrders" style="display:none; margin-bottom:14px;"></div>
+
       <div class="tracking-search-bar">
-        <input type="text" id="trackingInput" placeholder="รหัสคำสั่งซื้อ หรือ เบอร์โทรศัพท์..." onkeydown="if(event.key==='Enter') searchTracking()">
-        <button class="btn primary-btn" onclick="searchTracking()">ค้นหา</button>
+        <input type="text" id="trackingInput" placeholder="กรอกรหัสออเดอร์ หรือ เบอร์โทรศัพท์ 10 หลัก..." onkeydown="if(event.key==='Enter') searchTracking()">
+        <button class="btn primary-btn" onclick="searchTracking()">🔍 ค้นหา</button>
       </div>
 
       <div id="trackingResults">

@@ -541,20 +541,18 @@ async function saveDbOrder(orderData) {
  */
 async function trackDbOrder(query) {
   await loadSystemConfig();
-  const cleanQuery = query.trim();
-  if (!cleanQuery) return [];
+  const cleanQuery = (query || "").trim();
 
   if (supabaseClient) {
     try {
-      const { data, error } = await supabaseClient
-        .from("orders")
-        .select("*")
-        .or(`order_number.ilike.%${cleanQuery}%,customer_phone.ilike.%${cleanQuery}%`)
-        .order("created_at", { ascending: false });
-
-      if (!error && data && data.length > 0) {
-        return data;
+      let req = supabaseClient.from("orders").select("*").order("created_at", { ascending: false });
+      if (cleanQuery) {
+        req = req.or(`order_number.ilike.%${cleanQuery}%,customer_phone.ilike.%${cleanQuery}%,customer_email.ilike.%${cleanQuery}%`);
+      } else {
+        req = req.limit(5);
       }
+      const { data, error } = await req;
+      if (!error && data && data.length > 0) return data;
     } catch (e) {
       console.warn("Track order error:", e);
     }
@@ -562,10 +560,14 @@ async function trackDbOrder(query) {
 
   // Fallback: ค้นหาจาก LocalStorage
   const localOrders = JSON.parse(localStorage.getItem("bake_house_orders") || "[]");
-  return localOrders.filter(o => 
-    (o.orderNumber && o.orderNumber.toLowerCase().includes(cleanQuery.toLowerCase())) ||
-    (o.phone && o.phone.includes(cleanQuery))
-  );
+  if (!cleanQuery) return localOrders.slice(0, 5);
+  return localOrders.filter(o => {
+    const num = (o.order_number || o.orderNumber || "").toLowerCase();
+    const phone = (o.customer_phone || o.phone || "");
+    const email = (o.customer_email || o.email || "").toLowerCase();
+    const q = cleanQuery.toLowerCase();
+    return num.includes(q) || phone.includes(q) || email.includes(q);
+  });
 }
 
 /**

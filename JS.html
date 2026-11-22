@@ -756,27 +756,139 @@ async function placeOrder(event) {
 }
 
 /* ================= ORDER TRACKING ================= */
-function openTrackingModal() {
+
+function getCustomerRecentOrders() {
+    let list = [];
+
+    // 1. ดึงจาก bake_house_recent_orders (ที่เพิ่งสั่งบนเครื่องนี้)
+    try {
+        const rec = JSON.parse(localStorage.getItem("bake_house_recent_orders") || "[]");
+        if (Array.isArray(rec)) list.push(...rec);
+    } catch (e) {}
+
+    // 2. ดึงจาก bake_house_orders (ออเดอร์ในเครื่องทั้งหมด)
+    try {
+        const allLocal = JSON.parse(localStorage.getItem("bake_house_orders") || "[]");
+        if (Array.isArray(allLocal)) {
+            allLocal.forEach(o => {
+                const orderNum = o.order_number || o.orderNumber;
+                if (orderNum && !list.some(x => (x.order_number || x.orderNumber) === orderNum)) {
+                    list.push(o);
+                }
+            });
+        }
+    } catch (e) {}
+
+    // 3. จัดลำดับตามบัญชี Google ที่กำลังล็อกอินอยู่
+    if (typeof getCurrentAuthUser === "function") {
+        const user = getCurrentAuthUser();
+        if (user && user.email) {
+            list.sort((a, b) => {
+                const aMatch = (a.customer_email || a.email) === user.email ? 1 : 0;
+                const bMatch = (b.customer_email || b.email) === user.email ? 1 : 0;
+                return bMatch - aMatch;
+            });
+        }
+    }
+
+    return list.slice(0, 6);
+}
+
+function renderQuickRecentOrders(recentOrders) {
+    const wrap = document.getElementById("quickRecentOrders");
+    if (!wrap) return;
+
+    if (!recentOrders || recentOrders.length === 0) {
+        wrap.style.display = "none";
+        wrap.innerHTML = "";
+        return;
+    }
+
+    wrap.style.display = "block";
+    wrap.innerHTML = `
+        <div style="font-size:12px; font-weight:600; color:var(--brown); margin-bottom:6px; display:flex; align-items:center; gap:5px;">
+            <span>🕒 คำสั่งซื้อล่าสุดของคุณ (คลิกดูได้ทันที):</span>
+        </div>
+        <div class="quick-orders-wrap">
+            ${recentOrders.map((o, idx) => {
+                const no = o.order_number || o.orderNumber;
+                const total = o.total_amount || o.totalAmount || 0;
+                const status = (o.order_status || o.orderStatus || "pending").toLowerCase();
+                const icon = status === "completed" ? "✅" : (status === "delivering" ? "🛵" : (status === "baking" ? "🥐" : "⏳"));
+                return `
+                    <button type="button" class="quick-order-chip ${idx === 0 ? 'active' : ''}" onclick="selectQuickOrder('${no}', this)">
+                        ${icon} <b>${no}</b> (฿${total})
+                    </button>
+                `;
+            }).join("")}
+        </div>
+    `;
+}
+
+function selectQuickOrder(orderNo, btn) {
+    document.querySelectorAll(".quick-order-chip").forEach(b => b.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+    const input = document.getElementById("trackingInput");
+    if (input) input.value = orderNo;
+    searchTracking(orderNo);
+}
+
+async function openTrackingModal(preferredOrderNo) {
     const modal = document.getElementById("trackingModal");
-    if (modal) {
-        modal.classList.add("show");
-        const input = document.getElementById("trackingInput");
-        if (input) input.focus();
+    if (!modal) return;
+    modal.classList.add("show");
+
+    // 1. ดึงประวัติออเดอร์ของลูกค้าที่เคยสั่งบนเครื่องนี้ หรือจากบัญชีที่ล็อกอินอยู่
+    const recentOrders = getCustomerRecentOrders();
+    renderQuickRecentOrders(recentOrders);
+
+    // 2. หากมีระบุออเดอร์ หรือมีออเดอร์ล่าสุดอยู่แล้ว ให้โหลดแสดงสถานะทันทีโดยไม่ต้องพิมพ์!
+    const targetOrderNo = preferredOrderNo || (recentOrders.length > 0 ? (recentOrders[0].order_number || recentOrders[0].orderNumber) : "");
+    const input = document.getElementById("trackingInput");
+
+    if (targetOrderNo) {
+        if (input) input.value = targetOrderNo;
+        await searchTracking(targetOrderNo);
+    } else {
+        // หากไม่มีรหัสออเดอร์ ให้ดูว่าเคยมีเบอร์โทรศัพท์มั้ย
+        const lastPhone = localStorage.getItem("bake_house_last_phone");
+        if (lastPhone && input) {
+            input.value = lastPhone;
+            await searchTracking(lastPhone);
+        } else {
+            const container = document.getElementById("trackingResults");
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:35px 20px; background:#FFFDF9; border-radius:14px; border:1px dashed #D9B98C;">
+                        <span style="font-size:42px;">🥐</span>
+                        <h3 style="color:var(--dark-brown); margin:10px 0 5px;">ลืมรหัสคำสั่งซื้อ หรือไม่ได้แคปหน้าจอไว้?</h3>
+                        <p style="color:var(--gray); font-size:13px; margin:0 0 15px; line-height:1.6;">
+                            ไม่ต้องกังวลครับ! เพียงพิมพ์ <b>เบอร์โทรศัพท์ 10 หลัก</b> ที่ใช้ตอนสั่งซื้อลงในช่องด้านบน แล้วกดค้นหาได้เลย
+                        </p>
+                    </div>
+                `;
+            }
+        }
     }
 }
 
-async function searchTracking() {
+async function searchTracking(forcedQuery) {
     const input = document.getElementById("trackingInput");
     const container = document.getElementById("trackingResults");
-    if (!input || !container) return;
+    if (!container) return;
 
-    const query = input.value.trim();
+    const query = (forcedQuery || (input ? input.value : "")).trim();
     if (!query) {
         showToast("กรุณากรอกรหัสคำสั่งซื้อ หรือ เบอร์โทรศัพท์");
         return;
     }
 
-    container.innerHTML = `<div style="text-align:center; padding:30px; color:#8A7A72;">⏳ กำลังค้นหาข้อมูลจากฐานข้อมูล...</div>`;
+    container.innerHTML = `
+        <div style="text-align:center; padding:30px; color:#8A7A72;">
+            <div style="font-size:36px; animation:hStepGlow 1s infinite alternate; display:inline-block;">🥐</div>
+            <p style="margin-top:10px; font-weight:500;">กำลังตรวจสอบสถานะความสดใหม่แบบเรียลไทม์...</p>
+        </div>
+    `;
 
     try {
         let results = [];
@@ -784,12 +896,24 @@ async function searchTracking() {
             results = await trackDbOrder(query);
         }
 
+        // ค้นหาใน LocalStorage สำรอง
+        if (!results || results.length === 0) {
+            const local = JSON.parse(localStorage.getItem("bake_house_orders") || "[]");
+            results = local.filter(o => {
+                const oNo = String(o.order_number || o.orderNumber || "").toLowerCase();
+                const oPhone = String(o.customer_phone || o.phone || "");
+                const oEmail = String(o.customer_email || o.email || "").toLowerCase();
+                const q = query.toLowerCase();
+                return oNo.includes(q) || oPhone.includes(q) || oEmail.includes(q);
+            });
+        }
+
         if (!results || results.length === 0) {
             container.innerHTML = `
-                <div style="text-align:center; padding:30px; color:#8A7A72;">
-                    <div style="font-size:40px;">🔍</div>
-                    <p style="margin-top:10px;">ไม่พบคำสั่งซื้อที่ตรงกับ "<b>${query}</b>"</p>
-                    <small>กรุณาตรวจสอบรหัสคำสั่งซื้อ (เช่น BH261108-xxxx) หรือเบอร์โทรศัพท์ที่ใช้สั่งซื้อ</small>
+                <div style="text-align:center; padding:30px 20px; background:#FFF8EE; border-radius:12px; border:1px dashed #D9B98C;">
+                    <div style="font-size:42px;">🔍</div>
+                    <h3 style="color:var(--dark-brown); margin:10px 0 5px;">ไม่พบคำสั่งซื้อที่ตรงกับ "${query}"</h3>
+                    <p style="color:var(--gray); font-size:13px; margin:0 0 10px;">กรุณาตรวจสอบว่าพิมพ์รหัสหรือเบอร์โทรถูกต้อง หรือลองกรอกเฉพาะหมายเลขโทรศัพท์ 10 หลักดูนะครับ</p>
                 </div>
             `;
             return;
@@ -797,7 +921,7 @@ async function searchTracking() {
 
         container.innerHTML = results.map(renderTrackingCard).join("");
     } catch (err) {
-        container.innerHTML = `<p style="text-align:center; color:#dc3545;">เกิดข้อผิดพลาดในการค้นหา: ${err.message}</p>`;
+        container.innerHTML = `<p style="text-align:center; color:#dc3545; padding:20px;">เกิดข้อผิดพลาดในการค้นหา: ${err.message}</p>`;
     }
 }
 
@@ -806,62 +930,152 @@ function renderTrackingCard(order) {
     const status = (order.order_status || order.orderStatus || "pending").toLowerCase();
     const dateStr = order.created_at ? new Date(order.created_at).toLocaleString("th-TH") : "วันนี้";
     const total = order.total_amount || order.totalAmount || 0;
+    const destProvince = order.province || "กรุงเทพมหานคร";
+    const destAddress = order.customer_address || order.address || "-";
+    const destName = order.customer_name || order.name || "ลูกค้าคนพิเศษ";
+    const destPhone = order.customer_phone || order.phone || "";
 
-    // Timeline progress mapping
+    // 5 สเต็ปมาตรฐานของเบเกอรี่
     const steps = [
-        { key: "pending", name: "รับออเดอร์แล้ว", desc: "ทางร้านได้รับข้อมูลคำสั่งซื้อแล้ว" },
-        { key: "confirmed", name: "ยืนยันออเดอร์", desc: "ตรวจสอบยอดชำระเงินเรียบร้อย" },
-        { key: "baking", name: "กำลังอบสดใหม่ 🥐", desc: "เชฟกำลังอบเบเกอรี่ร้อนๆ จากเตา" },
-        { key: "delivering", name: "กำลังจัดส่ง 🛵", desc: "ขนส่งกำลังนำความอร่อยไปส่งให้คุณ" },
-        { key: "completed", name: "จัดส่งสำเร็จ ✓", desc: "ส่งมอบสินค้าเรียบร้อย ขอให้อร่อยนะคะ!" }
+        { key: "pending", name: "รับออเดอร์", icon: "📝", desc: "รับรายการแล้ว รอยืนยันยอด" },
+        { key: "confirmed", name: "ยืนยันแล้ว", icon: "💳", desc: "ตรวจยอดชำระเงินเรียบร้อย" },
+        { key: "baking", name: "กำลังอบสดใหม่", icon: "🥐", desc: "เชฟกำลังอบสดใหม่จากเตา" },
+        { key: "delivering", name: "กำลังจัดส่ง", icon: "🛵", desc: "ไรเดอร์กำลังนำส่งถึงบ้านคุณ" },
+        { key: "completed", name: "จัดส่งสำเร็จ", icon: "🎉", desc: "ส่งมอบความสดใหม่เรียบร้อย" }
     ];
 
-    const currentStepIndex = steps.findIndex(s => s.key === status);
-    const activeIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
+    const currentStepIdx = steps.findIndex(s => s.key === status);
+    const activeIdx = currentStepIdx >= 0 ? currentStepIdx : 0;
+
+    // คำนวณความคืบหน้าของเส้นทางจัดส่ง
+    let progressPercent = 15;
+    let vehicleIcon = "🛵";
+    let progressText = "กำลังเตรียมแพ็คสินค้าลงกล่อง";
+
+    if (status === "confirmed") {
+        progressPercent = 35;
+        vehicleIcon = "📦";
+        progressText = "คิวอบขนมสดใหม่เรียบร้อย";
+    } else if (status === "baking") {
+        progressPercent = 60;
+        vehicleIcon = "🥐";
+        progressText = "กลิ่นหอมกรุ่น... อบเสร็จใหม่ๆ พร้อมส่ง";
+    } else if (status === "delivering") {
+        progressPercent = 85;
+        vehicleIcon = "🛵";
+        progressText = `ไรเดอร์กำลังมุ่งหน้าไปส่งที่ ${destProvince}`;
+    } else if (status === "completed") {
+        progressPercent = 100;
+        vehicleIcon = "✅";
+        progressText = "จัดส่งสำเร็จถึงมือคุณแล้ว ทานให้อร่อยนะคะ!";
+    }
 
     let itemsList = "";
     if (Array.isArray(order.items)) {
-        itemsList = order.items.map(it => `<li>${it.name} x ${it.quantity} (฿${it.price * it.quantity})</li>`).join("");
+        itemsList = order.items.map(it => `
+            <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px; color:var(--dark-brown);">
+                <span><b>${it.name}</b> x${it.quantity}</span>
+                <span>฿${it.price * it.quantity}</span>
+            </div>
+        `).join("");
     }
 
     return `
-        <div style="background:white; border-radius:15px; padding:20px; margin-bottom:20px; box-shadow:0 4px 15px rgba(62,41,32,0.06); border:1px solid #EADBCE;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #F5E8D5; padding-bottom:12px; margin-bottom:15px;">
+        <div style="background:white; border-radius:18px; padding:22px; margin-bottom:20px; box-shadow:0 6px 20px rgba(62,41,32,0.08); border:1px solid #EADBCE;">
+            <!-- Header -->
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #F5E8D5; padding-bottom:12px; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
                 <div>
-                    <h3 style="color:var(--dark-brown); margin:0; font-size:17px;">รหัส: ${orderNo}</h3>
-                    <small style="color:var(--gray);">${dateStr}</small>
+                    <span style="font-size:11px; background:#F0E3D3; color:var(--brown); padding:3px 8px; border-radius:10px; font-weight:600;">รหัสคำสั่งซื้อ</span>
+                    <h3 style="color:var(--dark-brown); margin:4px 0 0; font-size:18px; letter-spacing:0.5px;">${orderNo}</h3>
+                    <small style="color:var(--gray); font-size:12px;">สั่งซื้อเมื่อ: ${dateStr}</small>
                 </div>
-                <span class="status-badge status-${status}">${translateOrderStatusTh(status)}</span>
+                <div style="text-align:right;">
+                    <span class="status-badge status-${status}" style="font-size:13px; padding:6px 14px; border-radius:20px;">
+                        ${translateOrderStatusTh(status)}
+                    </span>
+                </div>
             </div>
 
-            <div class="timeline">
+            <!-- Horizontal Stepper -->
+            <div class="h-stepper">
                 ${steps.map((step, idx) => {
-                    const isDone = idx < activeIndex;
-                    const isCurrent = idx === activeIndex;
-                    const cls = isCurrent ? "timeline-step active current" : (isDone ? "timeline-step active" : "timeline-step");
+                    const isDone = idx < activeIdx;
+                    const isCurrent = idx === activeIdx;
+                    const cls = isCurrent ? "h-step active" : (isDone ? "h-step done" : "h-step");
                     return `
                         <div class="${cls}">
-                            <div class="timeline-dot">${isDone ? "✓" : (idx + 1)}</div>
-                            <div class="timeline-content">
-                                <h4>${step.name}</h4>
-                                <p>${step.desc}</p>
-                            </div>
+                            <div class="h-step-icon">${isDone ? "✓" : step.icon}</div>
+                            <span class="h-step-label">${step.name}</span>
                         </div>
+                        ${idx < steps.length - 1 ? `<div class="h-step-line ${idx < activeIdx ? 'done' : ''}"></div>` : ''}
                     `;
                 }).join("")}
             </div>
 
-            <div style="background:#FFF8EE; border-radius:10px; padding:12px 16px; margin-top:15px; font-size:13px;">
-                <p style="margin:0 0 6px;"><b>ผู้รับ:</b> ${order.customer_name || order.name} (${order.customer_phone || order.phone})</p>
-                <p style="margin:0 0 6px;"><b>ที่อยู่:</b> ${order.customer_address || order.address}</p>
-                <ul style="margin:0 0 8px; padding-left:20px;">${itemsList}</ul>
-                <div style="display:flex; justify-content:space-between; font-weight:600; color:var(--brown); font-size:15px; border-top:1px dashed #D9B98C; padding-top:8px;">
-                    <span>ยอดสุทธิ</span>
-                    <span>฿${total}</span>
+            <!-- Visual Delivery Route Map Card -->
+            <div style="background:#FFFDF9; border:1px solid #EADBCE; border-radius:14px; padding:15px; margin:20px 0 15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-weight:600; color:var(--dark-brown); font-size:13px; display:flex; align-items:center; gap:5px;">
+                        <span>🚚</span> แผนที่เส้นทางจัดส่งสดใหม่ (Delivery Route)
+                    </span>
+                    <span style="font-size:11px; background:#EEDBCE; color:var(--dark-brown); padding:2px 8px; border-radius:10px; font-weight:600;">
+                        💨 รถควบคุมอุณหภูมิ
+                    </span>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; background:white; padding:12px 16px; border-radius:12px; border:1px solid #F0E3D3; position:relative;">
+                    <div style="text-align:center; min-width:75px;">
+                        <div style="font-size:24px;">🥐</div>
+                        <b style="font-size:12px; color:var(--dark-brown); display:block;">Bake House</b>
+                        <small style="font-size:10px; color:var(--gray);">เตาอบหลัก (กทม.)</small>
+                    </div>
+
+                    <div style="flex:1; margin:0 15px; position:relative; text-align:center;">
+                        <div style="height:4px; background:#F0E3D3; width:100%; border-radius:3px; position:relative;">
+                            <div style="height:100%; background:linear-gradient(90deg, #C99458, #6B4534); width:${progressPercent}%; border-radius:3px; transition:width 0.5s ease;"></div>
+                        </div>
+                        <div style="position:absolute; top:-16px; left:calc(${progressPercent}% - 14px); font-size:20px; transition:left 0.5s ease; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
+                            ${vehicleIcon}
+                        </div>
+                        <small style="font-size:11px; color:var(--brown); font-weight:600; display:block; margin-top:10px;">
+                            ${progressText}
+                        </small>
+                    </div>
+
+                    <div style="text-align:center; min-width:75px;">
+                        <div style="font-size:24px;">📍</div>
+                        <b style="font-size:12px; color:var(--dark-brown); display:block;">${destProvince}</b>
+                        <small style="font-size:10px; color:var(--gray);">คุณ ${destName.split(' ')[0]}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Details Box -->
+            <div style="background:#FFF8EE; border-radius:12px; padding:14px 16px; font-size:13px; border:1px solid #F5E8D5;">
+                <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px dashed #D9B98C;">
+                    <p style="margin:0 0 4px;"><b>👤 ผู้รับ:</b> ${destName} ${destPhone ? `(${destPhone})` : ''}</p>
+                    <p style="margin:0;"><b>🏡 ที่อยู่จัดส่ง:</b> ${destAddress} ${order.province ? `จ.${order.province}` : ''} ${order.postal_code || order.postalCode || ''}</p>
+                </div>
+
+                <div style="margin-bottom:8px;">
+                    <b style="color:var(--brown); font-size:12px; text-transform:uppercase;">รายการสินค้า:</b>
+                    <div style="margin-top:4px;">${itemsList}</div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; color:var(--dark-brown); font-size:15px; border-top:1px dashed #D9B98C; padding-top:8px; margin-top:8px;">
+                    <span>ยอดชำระสุทธิ (${translatePaymentMethod(order.payment_method || order.paymentMethod)})</span>
+                    <span style="color:var(--brown); font-size:17px;">฿${total}</span>
                 </div>
             </div>
         </div>
     `;
+}
+
+function translatePaymentMethod(method) {
+    if (method === "promptpay") return "พร้อมเพย์";
+    if (method === "transfer") return "โอนธนาคาร";
+    if (method === "cod") return "เก็บปลายทาง";
+    return method || "โอนเงิน";
 }
 
 function translateOrderStatusTh(status) {

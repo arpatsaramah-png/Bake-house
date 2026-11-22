@@ -1482,3 +1482,116 @@ button {
     border: 1.5px solid var(--gold);
     vertical-align: middle;
 }
+
+/* ================= ORDER TRACKING ENHANCEMENTS ================= */
+.quick-orders-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+}
+
+.quick-order-chip {
+    background: #FFF8EE;
+    border: 1px solid #D9B98C;
+    color: var(--dark-brown);
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.quick-order-chip:hover, .quick-order-chip.active {
+    background: var(--brown);
+    color: #FFF;
+    border-color: var(--brown);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(107, 69, 52, 0.2);
+}
+
+.h-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 18px 0 14px;
+    position: relative;
+}
+
+.h-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+}
+
+.h-step-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #F3EAE0;
+    border: 2px solid #E0D2C2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    color: var(--gray);
+}
+
+.h-step.done .h-step-icon {
+    background: var(--brown);
+    border-color: var(--brown);
+    color: #FFF;
+}
+
+.h-step.active .h-step-icon {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #FFF;
+    box-shadow: 0 0 0 5px rgba(201, 148, 88, 0.25);
+    animation: hStepGlow 1.5s infinite alternate;
+}
+
+@keyframes hStepGlow {
+    from { box-shadow: 0 0 0 3px rgba(201, 148, 88, 0.2); }
+    to { box-shadow: 0 0 0 8px rgba(201, 148, 88, 0.35); }
+}
+
+.h-step-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray);
+    margin-top: 6px;
+    white-space: nowrap;
+}
+
+.h-step.done .h-step-label {
+    color: var(--brown);
+}
+
+.h-step.active .h-step-label {
+    color: var(--dark-brown);
+    font-weight: 700;
+}
+
+.h-step-line {
+    flex: 1;
+    height: 3px;
+    background: #E5D6C4;
+    margin: -16px -4px 0;
+    z-index: 1;
+    transition: background 0.3s ease;
+}
+
+.h-step-line.done {
+    background: var(--brown);
+}
