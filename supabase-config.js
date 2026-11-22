@@ -444,16 +444,12 @@ const DEFAULT_BAKERY_PRODUCTS = [
  * 1. ดึงรายการสินค้าทั้งหมดจาก Supabase
  */
 async function getDbProducts() {
-  await loadSystemConfig();
-
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
         .from("products")
         .select("*")
-        .eq("is_active", true)
         .order("id", { ascending: true });
-
       if (error) throw error;
       if (data && data.length > 0) {
         return data.map(item => ({
@@ -465,6 +461,15 @@ async function getDbProducts() {
       console.warn("⚠️ Cannot fetch from Supabase, falling back to local products:", e.message);
     }
   }
+
+  try {
+    const cached = localStorage.getItem("bake_house_products");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+
   return DEFAULT_BAKERY_PRODUCTS;
 }
 
@@ -624,11 +629,13 @@ async function updateDbOrderStatus(orderId, newStatus) {
 
   if (supabaseClient) {
     try {
-      const { data, error } = await supabaseClient
-        .from("orders")
-        .update({ order_status: newStatus })
-        .eq("id", orderId);
-
+      let query = supabaseClient.from("orders").update({ order_status: newStatus });
+      if (typeof orderId === "number" || (!isNaN(Number(orderId)) && String(orderId).length < 10)) {
+        query = query.eq("id", orderId);
+      } else {
+        query = query.eq("order_number", orderId);
+      }
+      const { error } = await query;
       if (!error) return true;
     } catch (e) {
       console.error("Update status error:", e);
@@ -637,7 +644,7 @@ async function updateDbOrderStatus(orderId, newStatus) {
 
   // LocalStorage Fallback
   const localOrders = JSON.parse(localStorage.getItem("bake_house_orders") || "[]");
-  const target = localOrders.find(o => o.id === orderId || o.orderNumber === orderId);
+  const target = localOrders.find(o => o.id === orderId || o.orderNumber === orderId || o.order_number === orderId);
   if (target) {
     target.order_status = newStatus;
     localStorage.setItem("bake_house_orders", JSON.stringify(localOrders));

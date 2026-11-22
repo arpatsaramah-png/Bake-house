@@ -613,18 +613,162 @@
       }).join("");
     }
 
+    async function adjustOrderStock(order, action = "deduct") {
+      if (!order || !Array.isArray(order.items) || order.items.length === 0) return [];
+
+      let localProducts = [];
+      try {
+        localProducts = JSON.parse(localStorage.getItem("bake_house_products") || "[]");
+      } catch (e) {}
+
+      if (localProducts.length === 0 && typeof DEFAULT_BAKERY_PRODUCTS !== "undefined") {
+        localProducts = JSON.parse(JSON.stringify(DEFAULT_BAKERY_PRODUCTS));
+      }
+
+      const factor = action === "deduct" ? -1 : 1;
+      const updatedNames = [];
+
+      for (const item of order.items) {
+        const qty = Number(item.quantity || 1) * factor;
+        const itemName = item.name;
+
+        // 1. อัปเดตใน DEFAULT_BAKERY_PRODUCTS (RAM)
+        if (typeof DEFAULT_BAKERY_PRODUCTS !== "undefined") {
+          const p = DEFAULT_BAKERY_PRODUCTS.find(x => x.id === item.id || x.name === item.name);
+          if (p) {
+            p.stock = Math.max(0, (Number(p.stock) || 50) + qty);
+          }
+        }
+
+        // 2. อัปเดตใน LocalStorage
+        const lp = localProducts.find(x => x.id === item.id || x.name === item.name);
+        if (lp) {
+          lp.stock = Math.max(0, (Number(lp.stock) || 50) + qty);
+        }
+
+        // 3. อัปเดตใน Supabase Database
+        if (supabaseClient) {
+          try {
+            let q = supabaseClient.from("products").select("id, name, stock");
+            if (item.id) q = q.eq("id", item.id);
+            else if (item.name) q = q.eq("name", item.name);
+
+            const { data } = await q;
+            if (data && data.length > 0) {
+              const currentStock = Number(data[0].stock) || 0;
+              const newStock = Math.max(0, currentStock + qty);
+              await supabaseClient
+                .from("products")
+                .update({ stock: newStock })
+                .eq("id", data[0].id);
+              console.log(`📦 Supabase Stock updated for ${itemName}: ${currentStock} -> ${newStock}`);
+            }
+          } catch (err) {
+            console.warn("Supabase stock update error:", err);
+          }
+        }
+
+        updatedNames.push(`${item.name} (${action === 'deduct' ? '-' : '+'}${Math.abs(qty)})`);
+      }
+
+      try {
+        localStorage.setItem("bake_house_products", JSON.stringify(localProducts));
+      } catch (e) {}
+
+      // รีเฟรชแท็บสินค้าถ้าเปิดอยู่
+      if (document.getElementById("tabProducts").style.display !== "none") {
+        await loadProductsTab();
+      }
+
+      return updatedNames;
+    }
+
     async function changeStatus(orderId, newStatus) {
+      const target = allOrders.find(o => o.id === orderId || o.order_number === orderId || o.orderNumber === orderId);
+      const oldStatus = target ? (target.order_status || target.orderStatus || "pending").toLowerCase() : "pending";
+
       if (typeof updateDbOrderStatus === "function") {
         await updateDbOrderStatus(orderId, newStatus);
       }
-      // อัปเดตใน local array
-      const target = allOrders.find(o => o.id === orderId || o.order_number === orderId || o.orderNumber === orderId);
+
+      let stockChanges = [];
+
       if (target) {
         target.order_status = newStatus;
         target.orderStatus = newStatus;
+
+        // เมื่อแอดมินเปลี่ยนเป็น "ยืนยันแล้ว" (confirmed) ให้ตัดสต็อกสินค้าในออเดอร์ทันที
+        if (newStatus === "confirmed" && !target.stock_deducted) {
+          stockChanges = await adjustOrderStock(target, "deduct");
+          target.stock_deducted = true;
+        } else if (newStatus === "cancelled" && target.stock_deducted) {
+          // หากเคยกดยืนยันแล้วกดยกเลิก ให้คืนสต็อกสินค้าเข้าคลัง
+          stockChanges = await adjustOrderStock(target, "restore");
+          target.stock_deducted = false;
+        }
+
+        // อัปเดตใน LocalStorage
+        try {
+          const localOrders = JSON.parse(localStorage.getItem("bake_house_orders") || "[]");
+          const idx = localOrders.findIndex(o => o.id === orderId || o.order_number === orderId || o.orderNumber === orderId);
+          if (idx !== -1) {
+            localOrders[idx].order_status = newStatus;
+            localOrders[idx].stock_deducted = target.stock_deducted;
+            localStorage.setItem("bake_house_orders", JSON.stringify(localOrders));
+          }
+        } catch (e) {}
+
+        // อัปเดตสถานะ stock_deducted ใน Supabase
+        if (supabaseClient) {
+          try {
+            let oQuery = supabaseClient.from("orders").update({
+              order_status: newStatus,
+              stock_deducted: target.stock_deducted
+            });
+            if (target.id && !isNaN(Number(target.id))) {
+              oQuery = oQuery.eq("id", target.id);
+            } else {
+              oQuery = oQuery.eq("order_number", target.order_number || target.orderNumber);
+            }
+            await oQuery;
+          } catch (e) {}
+        }
+
+        // ซิงก์สถานะล่าสุดเข้า Google Sheets
+        try {
+          fetch("/api/sync-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order_number: target.order_number || target.orderNumber,
+              customer_name: target.customer_name || target.name,
+              order_status: newStatus,
+              payment_status: newStatus === "confirmed" ? "paid" : (target.payment_status || "pending")
+            })
+          });
+        } catch (e) {}
       }
+
       calculateKpis();
-      alert(`อัปเดตสถานะออเดอร์เป็น "${newStatus}" เรียบร้อยแล้ว`);
+      filterOrdersTable();
+
+      let msg = `✓ อัปเดตสถานะออเดอร์เป็น "${translateStatus(newStatus)}" เรียบร้อยแล้ว`;
+      if (newStatus === "confirmed" && stockChanges && stockChanges.length > 0) {
+        msg += `\n\n📦 ตัดสต็อกสินค้าเรียบร้อยแล้ว:\n- ${stockChanges.join('\n- ')}`;
+      } else if (newStatus === "cancelled" && stockChanges && stockChanges.length > 0) {
+        msg += `\n\n↩️ คืนยอดสต็อกสินค้าเข้าคลังแล้ว:\n- ${stockChanges.join('\n- ')}`;
+      }
+      alert(msg);
+    }
+
+    function translateStatus(s) {
+      if (s === "pending") return "รอดำเนินการ";
+      if (s === "confirmed") return "ยืนยันแล้ว";
+      if (s === "baking") return "กำลังอบขนม";
+      if (s === "delivering") return "กำลังจัดส่ง";
+      if (s === "completed") return "จัดส่งสำเร็จ";
+      if (s === "cancelled") return "ยกเลิก";
+      return s || "-";
     }
 
     function viewSlip(url) {

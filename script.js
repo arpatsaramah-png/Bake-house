@@ -169,6 +169,10 @@ let cart = JSON.parse(localStorage.getItem("bake_house_cart") || "[]");
 let appliedDiscount = 0;
 let appliedCouponCode = "";
 let uploadedSlipBase64 = "";
+    document.querySelectorAll(".slipPreview, .slip-preview").forEach(img => {
+        img.src = "";
+        img.style.display = "none";
+    });
 
 /* ================= INITIAL LOAD ================= */
 document.addEventListener("DOMContentLoaded", async function () {
@@ -541,6 +545,14 @@ function selectPaymentMethod(method) {
     if (promptpayBox) promptpayBox.style.display = method === "promptpay" ? "block" : "none";
     if (transferBox) transferBox.style.display = method === "transfer" ? "block" : "none";
     if (codBox) codBox.style.display = method === "cod" ? "block" : "none";
+
+    // แสดงพรีวิวสลิปต่อเนื่องหากมีรูปสลิปที่อัปโหลดไว้แล้ว
+    if (uploadedSlipBase64) {
+        document.querySelectorAll(".slipPreview, .slip-preview").forEach(img => {
+            img.src = uploadedSlipBase64;
+            img.style.display = "block";
+        });
+    }
 }
 
 let isTest1Baht = false;
@@ -624,14 +636,19 @@ function handleSlipUpload(event) {
         return;
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+        showToast("ขนาดไฟล์ภาพใหญ่เกินไป (กรุณาใช้ภาพขนาดไม่เกิน 5MB)");
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = function (e) {
         uploadedSlipBase64 = e.target.result;
-        const preview = document.getElementById("slipPreview");
-        if (preview) {
-            preview.src = uploadedSlipBase64;
-            preview.style.display = "block";
-        }
+        // แสดงพรีวิวสลิปทั้งในกล่อง PromptPay และ โอนผ่านธนาคาร
+        document.querySelectorAll(".slipPreview, .slip-preview").forEach(img => {
+            img.src = uploadedSlipBase64;
+            img.style.display = "block";
+        });
         showToast("แนบสลิปเรียบร้อยแล้ว ✓");
     };
     reader.readAsDataURL(file);
@@ -717,6 +734,10 @@ async function placeOrder(event) {
         appliedDiscount = 0;
         appliedCouponCode = "";
         uploadedSlipBase64 = "";
+    document.querySelectorAll(".slipPreview, .slip-preview").forEach(img => {
+        img.src = "";
+        img.style.display = "none";
+    });
         isTest1Baht = false;
         saveCartState();
         updateCart();
